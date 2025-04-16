@@ -5,7 +5,8 @@ import pandas as pd
 def clean_data(df):
     df['kwota_kredytu'] = df['kwota_kredytu'].replace('[\$,]', '', regex=True).astype(float)
     for col in ['oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon']:
-        df[col] = df[col].str.replace('%', '').astype(float)
+        # Ensure column is string, replace '%', then convert to numeric, coercing errors
+        df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '', regex=False), errors='coerce')
     df['data_akceptacji'] = pd.to_datetime(df['data_akceptacji'], dayfirst=True)
     return df
 
