@@ -42,7 +42,10 @@ st.markdown("""
 """)
 
 st.subheader("📈 Statystyki opisowe")
-st.write(df.describe())
+# Wybór kolumn numerycznych, które mają sens dla statystyk opisowych
+numeric_columns = ['scoring_FICO', 'okres_kredytu', 'kwota_kredytu', 
+                   'oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon']
+st.write(df[numeric_columns].describe())
 
 
 
