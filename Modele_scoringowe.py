@@ -13,6 +13,8 @@ def clean_data(df):
 # Tytuł aplikacji
 st.title("📊 Scoring kredytowy – eksploracja danych")
 
+st.markdown("Celem tego narzędzia jest przewidywanie, czy dany klient zaakceptuje przedstawioną ofertę kredytową. Model zwraca wynik punktowy – im wyższy wynik, tym większe prawdopodobieństwo, że klient skorzysta z oferty. ")
+
 # Wczytanie danych z pliku w repo
 df = pd.read_excel("kredyty_auto_Scoring2025s.xlsx")
 df = clean_data(df)
