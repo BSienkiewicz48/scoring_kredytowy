@@ -22,7 +22,24 @@ st.subheader("📌 Podgląd danych")
 st.dataframe(df.head())
 
 st.subheader("🔍 Informacje o danych")
-st.text(df.info())
+st.markdown("""
+- **LP** – numer porządkowy wiersza.  
+- **data_akceptacji** – data akceptacji wniosku kredytowego przez bank.  
+- **grupa_ryzyka** – oznaczenie grupy ryzyka kredytowego klienta według klasyfikacji banku.  
+- **kod_partnera** – identyfikator partnera biznesowego (sieci dealerów samochodowych).  
+- **typ_umowy** – typ umowy:  
+  - „N” – nowy samochód,  
+  - „U” – samochód używany,  
+  - „R” – refinansowanie kredytu (nowy kredyt na spłatę stałego).  
+- **scoring_FICO** – ocena punktowa FICO (odpowiednik polskiego scoringu BIK).  
+- **okres_kredytu** – długość okresu kredytowania w miesiącach (np. 48, 72, 60).  
+- **kwota_kredytu** – kwota przyznanego kredytu (np. $26,500).  
+- **oproc_refin** – oprocentowanie kredytu finansowego (dla typu umowy „R”).  
+- **oproc_konkur** – oprocentowanie oferowane przez konkurencję (najlepsza stopa procentowa konkurenta, dane prawdopodobnie pochodzą od partnerów).  
+- **koszt_pieniadza** – koszt pozyskania środków dla banku (np. 1.10%).  
+- **oproc_propon** – oprocentowanie proponowane klientowi przez bank.  
+- **akceptacja_klienta** – wynik akceptacji klienta (0 = brak akceptacji, 1 = akceptacja) - zmienna celu.  
+""")
 
 st.subheader("📈 Statystyki opisowe")
 st.write(df.describe())
