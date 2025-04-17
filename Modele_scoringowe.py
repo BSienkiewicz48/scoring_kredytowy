@@ -73,6 +73,7 @@ st.pyplot(fig)
 fig2, ax2 = plt.subplots(figsize=(10, 10))
 sns.violinplot(data=df[['oproc_konkur', 'koszt_pieniadza', 'oproc_propon']], ax=ax2)
 ax2.set_title("Oprocentowania i koszt pieniądza")
-ax2.yaxis.set_major_locator(plt.MaxNLocator(20))  # Ustawienie maksymalnej liczby oznaczeń na osi Y
+ax2.set_ylim(0, 0.12)  # Ustawienie zakresu osi Y od 0 do 0.12
+ax2.yaxis.set_major_locator(plt.MultipleLocator(0.005))  # Oznaczenia osi Y co 0.005
 st.pyplot(fig2)
 
