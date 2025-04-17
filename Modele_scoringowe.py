@@ -21,7 +21,7 @@ df = clean_data(df)
 
 # Wyświetlanie danych
 st.subheader("📌 Podgląd danych")
-st.dataframe(df.head())
+st.dataframe(df, height=400, use_container_width=True)
 
 st.subheader("🔍 Informacje o danych")
 st.markdown("""
