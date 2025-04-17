@@ -70,8 +70,10 @@ axes[1].set_title("Okres_kredytu")
 st.pyplot(fig)
 
 # Wykres violinowy dla oproc_refin, oproc_konkur, koszt_pieniadza, oproc_propon z większą wysokością
-fig2, ax2 = plt.subplots(figsize=(10, 8))
+fig2, ax2 = plt.subplots(figsize=(10, 10))
 sns.violinplot(data=df[['oproc_konkur', 'koszt_pieniadza', 'oproc_propon']], ax=ax2)
 ax2.set_title("Oprocentowania i koszt pieniądza")
 st.pyplot(fig2)
-
+# Dodanie większej liczby oznaczeń poziomów na osi OY dla fig2
+ax2.yaxis.set_major_locator(plt.MaxNLocator(10))  # Ustawienie maksymalnej liczby oznaczeń na osi Y
+st.pyplot(fig2)
