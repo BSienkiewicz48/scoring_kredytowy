@@ -9,7 +9,7 @@ def clean_data(df):
     for col in ['oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon']:
         # Ensure column is string, replace '%', then convert to numeric, coercing errors
         df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '', regex=False), errors='coerce')
-    df['data_akceptacji'] = pd.to_datetime(df['data_akceptacji'], dayfirst=True)
+    df['data_akceptacji'] = pd.to_datetime(df['data_akceptacji'], dayfirst=True).dt.date
     return df
 
 # Tytuł aplikacji
