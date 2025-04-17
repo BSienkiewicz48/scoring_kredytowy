@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -50,4 +52,19 @@ numeric_columns = ['scoring_FICO', 'okres_kredytu', 'kwota_kredytu',
 st.write(df[numeric_columns].describe())
 
 
+
+st.subheader("🎻 Wykresy violinowe")
+
+# Wykres violinowy dla scoring_FICO i okres_kredytu
+fig1, ax1 = plt.subplots(figsize=(10, 6))
+sns.violinplot(data=df, y='scoring_FICO', ax=ax1)
+sns.violinplot(data=df, y='okres_kredytu', ax=ax1, color="orange")
+ax1.set_title("Violin plot: scoring_FICO i okres_kredytu")
+st.pyplot(fig1)
+
+# Wykres violinowy dla oproc_refin, oproc_konkur, koszt_pieniadza, oproc_propon
+fig2, ax2 = plt.subplots(figsize=(10, 6))
+sns.violinplot(data=df[['oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon']], ax=ax2)
+ax2.set_title("Violin plot: oprocentowania i koszt pieniądza")
+st.pyplot(fig2)
 
