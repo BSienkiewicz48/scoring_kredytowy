@@ -52,16 +52,22 @@ numeric_columns = ['scoring_FICO', 'okres_kredytu', 'kwota_kredytu',
 st.write(df[numeric_columns].describe())
 
 
-
 st.subheader("🎻 Wykresy violinowe")
 
-# Wykres violinowy dla scoring_FICO i okres_kredytu z dwiema osiami OY
-fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
-sns.violinplot(data=df, y='scoring_FICO', ax=ax1)
-ax1.set_title("Violin plot: scoring_FICO")
+# Wykres violinowy dla scoring_FICO i okres_kredytu na jednym płótnie z dwiema osiami OY
+fig, ax1 = plt.subplots(figsize=(10, 6))
+
+# Wykres dla scoring_FICO
+sns.violinplot(data=df, y='scoring_FICO', ax=ax1, color="blue")
+ax1.set_ylabel("scoring_FICO")
+ax1.set_title("Violin plot: scoring_FICO i okres_kredytu")
+
+# Dodanie drugiej osi Y dla okres_kredytu
+ax2 = ax1.twinx()
 sns.violinplot(data=df, y='okres_kredytu', ax=ax2, color="orange")
-ax2.set_title("Violin plot: okres_kredytu")
-st.pyplot(fig1)
+ax2.set_ylabel("okres_kredytu")
+
+st.pyplot(fig)
 
 # Wykres violinowy dla oproc_refin, oproc_konkur, koszt_pieniadza, oproc_propon z większą wysokością
 fig2, ax2 = plt.subplots(figsize=(10, 8))
