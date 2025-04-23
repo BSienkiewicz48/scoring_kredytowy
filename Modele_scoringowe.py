@@ -119,7 +119,7 @@ for feature in features_to_check:
     table = optb.binning_table.build()
 
     # Potem dopiero zapisujemy IV i całą tabelę
-    iv_dict[feature] = table.iv
+    iv_dict[feature] = optb.iv()  # Call the iv() method instead of accessing .iv attribute
     binning_tables[feature] = table
 
     
