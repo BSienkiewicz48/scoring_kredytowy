@@ -117,13 +117,21 @@ for feature in features_to_check:
 
     # Pobieramy IV z analizy
     analysis_results = optb.binning_table.analysis()
-    iv_value = analysis_results['iv'] # Extract IV from the analysis results
 
-    # Zapisujemy
-    iv_dict[feature] = iv_value # Store the extracted IV value
-    binning_tables[feature] = table
+    # Sprawdź, czy analiza się powiodła przed próbą dostępu do 'iv'
+    if analysis_results is not None:
+        iv_value = analysis_results['iv'] # Extract IV from the analysis results
+        # Zapisujemy
+        iv_dict[feature] = iv_value # Store the extracted IV value
+        binning_tables[feature] = table
+    else:
+        # Obsłuż przypadek, gdy analiza nie powiodła się
+        print(f"Ostrzeżenie: Analiza optymalnego binningu nie powiodła się dla zmiennej '{feature}'. Przypisano IV = 0.")
+        iv_dict[feature] = 0.0
+        # Można zdecydować, czy nadal przechowywać tabelę, nawet jeśli analiza IV się nie powiodła
+        binning_tables[feature] = table
 
-    
+
 # Posortuj zmienne wg IV malejąco
 iv_series = pd.Series(iv_dict).sort_values(ascending=False)
 
