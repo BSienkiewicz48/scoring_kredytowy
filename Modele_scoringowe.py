@@ -21,9 +21,15 @@ st.title("📊 Scoring kredytowy – eksploracja danych")
 
 st.markdown("Celem tego narzędzia jest przewidywanie, czy dany klient zaakceptuje przedstawioną ofertę kredytową. Model zwraca wynik punktowy – im wyższy wynik, tym większe prawdopodobieństwo, że klient skorzysta z oferty. ")
 
-# Wczytanie danych z pliku w repo
-df = pd.read_excel("kredyty_auto_Scoring2025s.xlsx")
-df = clean_data(df)
+# Funkcja do wczytania i przygotowania danych z cache
+@st.cache_data
+def load_and_clean_data():
+  df = pd.read_excel("kredyty_auto_Scoring2025s.xlsx")
+  df = clean_data(df)
+  return df
+
+# Wczytanie danych z wykorzystaniem cache
+df = load_and_clean_data()
 
 # Wyświetlanie danych
 st.subheader("📌 Podgląd danych")
