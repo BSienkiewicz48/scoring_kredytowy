@@ -106,31 +106,46 @@ iv_dict = {}
 binning_tables = {}
 
 for feature in features_to_check:
-    X = df[feature]
-    y = df['akceptacja_klienta']
+    df_temp = df[[feature, 'akceptacja_klienta']].dropna()
 
-    optb = OptimalBinning(name=feature, dtype="numerical", solver="cp")
-    optb.fit(X, y)
+    # Tworzenie binów kwantylowych
+    try:
+        df_temp['bin'] = pd.qcut(df_temp[feature], q=10, duplicates='drop')
+    except ValueError:
+        # Jeżeli nie można stworzyć 10 binów, zrób mniej
+        df_temp['bin'] = pd.qcut(df_temp[feature], q=5, duplicates='drop')
 
-    # Budujemy tabelę binowania
-    table = optb.binning_table.build()
+    # Liczenie total good/bad
+    total_good = (df_temp['akceptacja_klienta'] == 1).sum()
+    total_bad = (df_temp['akceptacja_klienta'] == 0).sum()
 
-    # Pobieramy IV z analizy
-    analysis_results = optb.binning_table.analysis()
+    iv = 0
+    table_data = []
 
-    # Sprawdź, czy analiza się powiodła przed próbą dostępu do 'iv'
-    if analysis_results is not None:
-        iv_value = analysis_results['iv'] # Extract IV from the analysis results
-        # Zapisujemy
-        iv_dict[feature] = iv_value # Store the extracted IV value
-        binning_tables[feature] = table
-    else:
-        # Obsłuż przypadek, gdy analiza nie powiodła się
-        print(f"Ostrzeżenie: Analiza optymalnego binningu nie powiodła się dla zmiennej '{feature}'. Przypisano IV = 0.")
-        iv_dict[feature] = 0.0
-        # Można zdecydować, czy nadal przechowywać tabelę, nawet jeśli analiza IV się nie powiodła
-        binning_tables[feature] = table
+    for name, group in df_temp.groupby('bin'):
+        good = (group['akceptacja_klienta'] == 1).sum()
+        bad = (group['akceptacja_klienta'] == 0).sum()
 
+        if good > 0 and bad > 0:
+            dist_good = good / total_good
+            dist_bad = bad / total_bad
+            woe = np.log(dist_good / dist_bad)
+            iv_bin = (dist_good - dist_bad) * woe
+            iv += iv_bin
+        else:
+            woe = 0
+            iv_bin = 0
+
+        table_data.append({
+            'Przedział': str(name),
+            'Good': good,
+            'Bad': bad,
+            'WOE': round(woe, 4),
+            'IV_bin': round(iv_bin, 4)
+        })
+
+    iv_dict[feature] = iv
+    binning_tables[feature] = pd.DataFrame(table_data)
 
 # Posortuj zmienne wg IV malejąco
 iv_series = pd.Series(iv_dict).sort_values(ascending=False)
