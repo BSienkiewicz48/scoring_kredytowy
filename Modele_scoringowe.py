@@ -117,10 +117,10 @@ for feature in features_to_check:
 
     # Pobieramy IV z analizy
     analysis = table.analysis
-    iv_value = analysis['iv']
+    iv_value = analysis['iv'] # Extract IV from the analysis results
 
     # Zapisujemy
-    iv_dict[feature] = iv_value
+    iv_dict[feature] = iv_value # Store the extracted IV value
     binning_tables[feature] = table
 
     
