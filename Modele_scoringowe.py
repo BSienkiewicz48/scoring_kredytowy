@@ -117,7 +117,7 @@ for feature in features_to_check:
     optb.fit(X, y)
 
     # Zapisanie IV i tabeli
-    iv_dict[feature] = optb.iv
+    iv_dict[feature] = optb.binning_table.iv
     binning_tables[feature] = optb.binning_table.build()
     
 # Posortuj zmienne wg IV malejąco
