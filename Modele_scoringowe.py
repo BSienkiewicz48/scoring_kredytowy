@@ -176,7 +176,7 @@ st.pyplot(fig_iv)
 
 st.markdown("""
 **Interpretacja IV (Information Value):**
-- IV < 0.02 – brak predykcyjnej mocy  
+- < 0.02 – brak predykcyjnej mocy  
 - 0.02–0.1 – słaba  
 - 0.1–0.3 – średnia  
 - 0.3–0.5 – silna  
