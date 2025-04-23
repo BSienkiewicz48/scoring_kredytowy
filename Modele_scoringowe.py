@@ -166,7 +166,7 @@ st.markdown("""
 - 0.02–0.1 – słaba  
 - 0.1–0.3 – średnia  
 - 0.3–0.5 – silna  
-- > 0.5 – bardzo silna
+- />0.5 – bardzo silna
 """)
 
 st.subheader("📄 Szczegóły binowania i WOE")
@@ -175,3 +175,19 @@ selected_var = st.selectbox("Wybierz zmienną, aby zobaczyć tabelę binów:", i
 if selected_var:
     table = binning_tables[selected_var]
     st.dataframe(table, use_container_width=True)
+
+st.markdown("""
+**Opis tabeli binowania:**
+
+Poniższa tabela przedstawia statystyki dla każdego przedziału (binu), na które została podzielona zmienna.  
+- **Przedział** – zakres wartości w danym binie (ustalony metodą kwantylową).  
+- **Good / Bad** – liczba obserwacji z klasą 1 (zaakceptowana oferta) i 0 (odmowa) w tym przedziale.  
+- **WOE (Weight of Evidence)** – miara siły rozróżnienia między klasami.  
+  - Dodatnie WOE → przewaga „good”  
+  - Ujemne WOE → przewaga „bad”  
+  - Im dalej od zera, tym silniejsza różnicująca moc binu  
+- **IV_bin** – wkład danego binu do całkowitego Information Value zmiennej.  
+  - Im wyższy, tym większe znaczenie danego przedziału dla modelu.
+
+WOE i IV są używane w modelach scoringowych opartych na regresji logistycznej, aby przekształcić dane w bardziej informatywny i stabilny sposób.
+""")
