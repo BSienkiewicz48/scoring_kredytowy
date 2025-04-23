@@ -109,22 +109,18 @@ binning_tables = {}
 
 # Obliczanie optymalnego binowania i IV
 for feature in features_to_check:
-    X = df[feature].fillna(-999)  # Handle missing values
+    X = df[feature]
     y = df['akceptacja_klienta']
 
     optb = OptimalBinning(name=feature, dtype="numerical", solver="cp")
-    try:
-        optb.fit(X, y)
-        
-        # Najpierw budujemy tabelę
-        table = optb.binning_table.build()
-        
-        # Potem dopiero zapisujemy IV i całą tabelę
-        iv_dict[feature] = optb.binning_table.iv  # Access IV as an attribute of binning_table
-        binning_tables[feature] = table
-    except Exception as e:
-        st.error(f"Błąd przy przetwarzaniu zmiennej {feature}: {str(e)}")
-        iv_dict[feature] = 0
+    optb.fit(X, y)
+
+    # Musimy wywołać build() i przypisać wynik do zmiennej
+    table = optb.binning_table.build()
+
+    # Teraz możemy pobrać IV i całą tabelę
+    iv_dict[feature] = table.iv  # <-- to działa!
+    binning_tables[feature] = table
 
     
 # Posortuj zmienne wg IV malejąco
