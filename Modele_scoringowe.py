@@ -150,5 +150,5 @@ st.markdown("""
 - 0.02–0.1 – słaba  
 - 0.1–0.3 – średnia  
 - 0.3–0.5 – silna  
-- >0.5 – bardzo silna
+- \>0.5 – bardzo silna
 """)
