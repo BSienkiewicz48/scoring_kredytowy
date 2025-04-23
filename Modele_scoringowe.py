@@ -111,47 +111,55 @@ features_to_check = ['scoring_FICO', 'okres_kredytu', 'kwota_kredytu',
 iv_dict = {}
 binning_tables = {}
 
-for feature in features_to_check:
-    df_temp = df[[feature, 'akceptacja_klienta']].dropna()
+@st.cache_data
+def calculate_iv_binning(df, features_to_check):
+    iv_dict = {}
+    binning_tables = {}
 
-    # Tworzenie binów kwantylowych
-    try:
-        df_temp['bin'] = pd.qcut(df_temp[feature], q=10, duplicates='drop')
-    except ValueError:
-        # Jeżeli nie można stworzyć 10 binów, zrób mniej
-        df_temp['bin'] = pd.qcut(df_temp[feature], q=5, duplicates='drop')
+    for feature in features_to_check:
+        df_temp = df[[feature, 'akceptacja_klienta']].dropna()
 
-    # Liczenie total good/bad
-    total_good = (df_temp['akceptacja_klienta'] == 1).sum()
-    total_bad = (df_temp['akceptacja_klienta'] == 0).sum()
+        # Tworzenie binów kwantylowych
+        try:
+            df_temp['bin'] = pd.qcut(df_temp[feature], q=10, duplicates='drop')
+        except ValueError:
+            df_temp['bin'] = pd.qcut(df_temp[feature], q=5, duplicates='drop')
 
-    iv = 0
-    table_data = []
+        # Liczenie total good/bad
+        total_good = (df_temp['akceptacja_klienta'] == 1).sum()
+        total_bad = (df_temp['akceptacja_klienta'] == 0).sum()
 
-    for name, group in df_temp.groupby('bin'):
-        good = (group['akceptacja_klienta'] == 1).sum()
-        bad = (group['akceptacja_klienta'] == 0).sum()
+        iv = 0
+        table_data = []
 
-        if good > 0 and bad > 0:
-            dist_good = good / total_good
-            dist_bad = bad / total_bad
-            woe = np.log(dist_good / dist_bad)
-            iv_bin = (dist_good - dist_bad) * woe
-            iv += iv_bin
-        else:
-            woe = 0
-            iv_bin = 0
+        for name, group in df_temp.groupby('bin'):
+            good = (group['akceptacja_klienta'] == 1).sum()
+            bad = (group['akceptacja_klienta'] == 0).sum()
 
-        table_data.append({
-            'Przedział': str(name),
-            'Good': good,
-            'Bad': bad,
-            'WOE': round(woe, 4),
-            'IV_bin': round(iv_bin, 4)
-        })
+            if good > 0 and bad > 0:
+                dist_good = good / total_good
+                dist_bad = bad / total_bad
+                woe = np.log(dist_good / dist_bad)
+                iv_bin = (dist_good - dist_bad) * woe
+                iv += iv_bin
+            else:
+                woe = 0
+                iv_bin = 0
 
-    iv_dict[feature] = iv
-    binning_tables[feature] = pd.DataFrame(table_data)
+            table_data.append({
+                'Przedział': str(name),
+                'Good': good,
+                'Bad': bad,
+                'WOE': round(woe, 4),
+                'IV_bin': round(iv_bin, 4)
+            })
+
+        iv_dict[feature] = iv
+        binning_tables[feature] = pd.DataFrame(table_data)
+
+    return iv_dict, binning_tables
+
+iv_dict, binning_tables = calculate_iv_binning(df, features_to_check)
 
 # Posortuj zmienne wg IV malejąco
 iv_series = pd.Series(iv_dict).sort_values(ascending=False)
@@ -197,3 +205,4 @@ Poniższa tabela przedstawia statystyki dla każdego przedziału (binu), na któ
 
 WOE i IV są używane w modelach scoringowych opartych na regresji logistycznej, aby przekształcić dane w bardziej informatywny i stabilny sposób.
 """)
+
