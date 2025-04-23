@@ -98,16 +98,13 @@ Na podstawie danych pierwotnych stworzono dodatkowe cechy:
 - `intensity_rate` – relacja raty miesięcznej do scoringu FICO (im wyższa, tym większe „obciążenie” dla klienta).
 """)
 
-# Lista zmiennych do oceny
 features_to_check = ['scoring_FICO', 'okres_kredytu', 'kwota_kredytu',
                      'oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon',
                      'spread', 'margin', 'rata_miesieczna', 'intensity_rate']
 
-# Słownik na IV i tabele
 iv_dict = {}
 binning_tables = {}
 
-# Obliczanie optymalnego binowania i IV
 for feature in features_to_check:
     X = df[feature]
     y = df['akceptacja_klienta']
@@ -115,11 +112,15 @@ for feature in features_to_check:
     optb = OptimalBinning(name=feature, dtype="numerical", solver="cp")
     optb.fit(X, y)
 
-    # Musimy wywołać build() i przypisać wynik do zmiennej
+    # Budujemy tabelę binowania
     table = optb.binning_table.build()
 
-    # Teraz możemy pobrać IV i całą tabelę
-    iv_dict[feature] = table.iv  # <-- to działa!
+    # Pobieramy IV z analizy
+    analysis = table.analysis
+    iv_value = analysis['iv']
+
+    # Zapisujemy
+    iv_dict[feature] = iv_value
     binning_tables[feature] = table
 
     
