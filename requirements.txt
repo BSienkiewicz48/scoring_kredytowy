@@ -7,3 +7,4 @@ matplotlib
 seaborn
 xgboost
 category_encoders
+optbinning
