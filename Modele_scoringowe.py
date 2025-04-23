@@ -172,7 +172,7 @@ st.markdown("""
 - 0.02–0.1 – słaba  
 - 0.1–0.3 – średnia  
 - 0.3–0.5 – silna  
-- IV &gt; 0.5 – bardzo silna
+- &gt; 0.5 – bardzo silna
 """)
 
 st.subheader("📄 Szczegóły binowania i WOE")
