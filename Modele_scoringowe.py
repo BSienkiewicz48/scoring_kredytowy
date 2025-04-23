@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -78,3 +79,78 @@ ax2.yaxis.set_major_locator(plt.MultipleLocator(0.005))  # Oznaczenia osi Y co 0
 st.pyplot(fig2)
 
 st.markdown("Wykresy violinowe okazują nie tylko minimum, maksimum i medianę, ale też jak „tłoczno” jest w różnych częściach rozkładu. Dzięki temu możemy szybko zorientować się, gdzie skupiają się obserwacje, a gdzie robi się luźniej.")
+
+# Tworzenie zmiennych pochodnych
+df['spread'] = df['oproc_propon'] - df['oproc_konkur']
+df['margin'] = df['oproc_propon'] - df['koszt_pieniadza']
+df['rata_miesieczna'] = df['kwota_kredytu'] / df['okres_kredytu']
+df['intensity_rate'] = df['rata_miesieczna'] / df['scoring_FICO']
+
+st.markdown("""
+#### ✨ Nowe zmienne pochodne
+Na podstawie danych pierwotnych wygenerowano dodatkowe cechy:
+- `spread` – różnica między oprocentowaniem banku a konkurencją,
+- `margin` – marża banku względem kosztu pozyskania środków,
+- `rata_miesieczna` – szacunkowa wysokość miesięcznej raty,
+- `intensity_rate` – relacja raty miesięcznej do scoringu FICO (im wyższa, tym większe „obciążenie” dla klienta).
+""")
+
+from category_encoders.woe import WOEEncoder
+from sklearn.preprocessing import KBinsDiscretizer
+
+# Funkcja obliczająca IV dla jednej zmiennej
+def calculate_iv(df, feature, target, bins=10):
+    # Tworzymy kopię danych
+    df_temp = df[[feature, target]].dropna()
+    
+    # Jeżeli zmienna jest liczbowa – binujemy ją
+    if pd.api.types.is_numeric_dtype(df_temp[feature]):
+        df_temp['bin'] = pd.qcut(df_temp[feature], q=bins, duplicates='drop')
+    else:
+        df_temp['bin'] = df_temp[feature]
+    
+    # Obliczamy statystyki dla każdej grupy
+    grouped = df_temp.groupby('bin')
+    total_good = (df_temp[target] == 1).sum()
+    total_bad = (df_temp[target] == 0).sum()
+    
+    iv = 0
+    for name, group in grouped:
+        good = (group[target] == 1).sum()
+        bad = (group[target] == 0).sum()
+        if good > 0 and bad > 0:
+            dist_good = good / total_good
+            dist_bad = bad / total_bad
+            iv += (dist_good - dist_bad) * np.log(dist_good / dist_bad)
+    
+    return iv
+
+# Lista zmiennych do oceny
+features_to_check = ['scoring_FICO', 'okres_kredytu', 'kwota_kredytu',
+                     'oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon',
+                     'spread', 'margin', 'rata_miesieczna', 'intensity_rate']
+
+# Obliczenie IV dla każdej zmiennej
+iv_dict = {feature: calculate_iv(df, feature, 'akceptacja_klienta') for feature in features_to_check}
+iv_series = pd.Series(iv_dict).sort_values(ascending=False)
+
+
+st.subheader("📊 Siła predykcyjna zmiennych (IV)")
+
+fig_iv, ax_iv = plt.subplots(figsize=(10, 6))
+sns.barplot(x=iv_series.values, y=iv_series.index, palette="viridis", ax=ax_iv)
+ax_iv.set_xlabel("Information Value (IV)")
+ax_iv.set_ylabel("Zmienna")
+ax_iv.set_title("IV zmiennych – malejąco")
+st.pyplot(fig_iv)
+
+st.markdown("""
+**Interpretacja IV (Information Value):**
+- IV < 0.02 – brak predykcyjnej mocy  
+- 0.02–0.1 – słaba  
+- 0.1–0.3 – średnia  
+- 0.3–0.5 – silna  
+- > 0.5 – bardzo silna
+
+Wykres poniżej pokazuje, które zmienne najlepiej rozróżniają klientów, którzy zaakceptowali ofertę, od tych, którzy jej nie przyjęli.
+""")
