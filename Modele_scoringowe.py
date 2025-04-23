@@ -98,58 +98,62 @@ Na podstawie danych pierwotnych stworzono dodatkowe cechy:
 - `intensity_rate` – relacja raty miesięcznej do scoringu FICO (im wyższa, tym większe „obciążenie” dla klienta).
 """)
 
+@st.cache_data
+def calculate_iv_tables(df, features):
+    iv_dict = {}
+    binning_tables = {}
+
+    for feature in features:
+        df_temp = df[[feature, 'akceptacja_klienta']].dropna()
+
+        try:
+            df_temp['bin'] = pd.qcut(df_temp[feature], q=10, duplicates='drop')
+        except ValueError:
+            df_temp['bin'] = pd.qcut(df_temp[feature], q=5, duplicates='drop')
+
+        total_good = (df_temp['akceptacja_klienta'] == 1).sum()
+        total_bad = (df_temp['akceptacja_klienta'] == 0).sum()
+
+        iv = 0
+        table_data = []
+
+        for name, group in df_temp.groupby('bin'):
+            good = (group['akceptacja_klienta'] == 1).sum()
+            bad = (group['akceptacja_klienta'] == 0).sum()
+
+            if good > 0 and bad > 0:
+                dist_good = good / total_good
+                dist_bad = bad / total_bad
+                woe = np.log(dist_good / dist_bad)
+                iv_bin = (dist_good - dist_bad) * woe
+                iv += iv_bin
+            else:
+                woe = 0
+                iv_bin = 0
+
+            table_data.append({
+                'Przedział': str(name),
+                'Good': good,
+                'Bad': bad,
+                'WOE': round(woe, 4),
+                'IV_bin': round(iv_bin, 4)
+            })
+
+        iv_dict[feature] = iv
+        binning_tables[feature] = pd.DataFrame(table_data)
+
+    return iv_dict, binning_tables
+
+# Lista cech
 features_to_check = ['scoring_FICO', 'okres_kredytu', 'kwota_kredytu',
                      'oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon',
                      'spread', 'margin', 'rata_miesieczna', 'intensity_rate']
 
-iv_dict = {}
-binning_tables = {}
-
-for feature in features_to_check:
-    df_temp = df[[feature, 'akceptacja_klienta']].dropna()
-
-    # Tworzenie binów kwantylowych
-    try:
-        df_temp['bin'] = pd.qcut(df_temp[feature], q=10, duplicates='drop')
-    except ValueError:
-        # Jeżeli nie można stworzyć 10 binów, zrób mniej
-        df_temp['bin'] = pd.qcut(df_temp[feature], q=5, duplicates='drop')
-
-    # Liczenie total good/bad
-    total_good = (df_temp['akceptacja_klienta'] == 1).sum()
-    total_bad = (df_temp['akceptacja_klienta'] == 0).sum()
-
-    iv = 0
-    table_data = []
-
-    for name, group in df_temp.groupby('bin'):
-        good = (group['akceptacja_klienta'] == 1).sum()
-        bad = (group['akceptacja_klienta'] == 0).sum()
-
-        if good > 0 and bad > 0:
-            dist_good = good / total_good
-            dist_bad = bad / total_bad
-            woe = np.log(dist_good / dist_bad)
-            iv_bin = (dist_good - dist_bad) * woe
-            iv += iv_bin
-        else:
-            woe = 0
-            iv_bin = 0
-
-        table_data.append({
-            'Przedział': str(name),
-            'Good': good,
-            'Bad': bad,
-            'WOE': round(woe, 4),
-            'IV_bin': round(iv_bin, 4)
-        })
-
-    iv_dict[feature] = iv
-    binning_tables[feature] = pd.DataFrame(table_data)
-
-# Posortuj zmienne wg IV malejąco
+# Obliczenia tylko raz dzięki cache
+iv_dict, binning_tables = calculate_iv_tables(df, features_to_check)
 iv_series = pd.Series(iv_dict).sort_values(ascending=False)
 
+# Wyświetlenie wykresu IV
 st.subheader("📊 Siła predykcyjna zmiennych (IV)")
 st.markdown("Wykres poniżej pokazuje, które zmienne najlepiej rozróżniają klientów, którzy zaakceptowali ofertę, od tych, którzy jej nie przyjęli.")
 
@@ -166,15 +170,22 @@ st.markdown("""
 - 0.02–0.1 – słaba  
 - 0.1–0.3 – średnia  
 - 0.3–0.5 – silna  
-- />0.5 – bardzo silna
+- > 0.5 – bardzo silna
 """)
 
-st.subheader("📄 Szczegóły binowania i WOE")
+# Wybór zmiennej z session_state
+if "selected_var" not in st.session_state:
+    st.session_state.selected_var = iv_series.index[0]
 
-selected_var = st.selectbox("Wybierz zmienną, aby zobaczyć tabelę binów:", iv_series.index.tolist())
-if selected_var:
-    table = binning_tables[selected_var]
-    st.dataframe(table, use_container_width=True)
+selected_var = st.selectbox(
+    "Wybierz zmienną, aby zobaczyć tabelę binów:",
+    iv_series.index.tolist(),
+    index=iv_series.index.tolist().index(st.session_state.selected_var),
+    key="selected_var"
+)
+
+# Szczegóły binowania
+st.subheader("📄 Szczegóły binowania i WOE")
 
 st.markdown("""
 **Opis tabeli binowania:**
@@ -188,6 +199,6 @@ Poniższa tabela przedstawia statystyki dla każdego przedziału (binu), na któ
   - Im dalej od zera, tym silniejsza różnicująca moc binu  
 - **IV_bin** – wkład danego binu do całkowitego Information Value zmiennej.  
   - Im wyższy, tym większe znaczenie danego przedziału dla modelu.
-
-WOE i IV są używane w modelach scoringowych opartych na regresji logistycznej, aby przekształcić dane w bardziej informatywny i stabilny sposób.
 """)
+
+st.dataframe(binning_tables[selected_var], use_container_width=True)
