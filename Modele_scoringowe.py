@@ -112,13 +112,16 @@ for feature in features_to_check:
     X = df[feature]
     y = df['akceptacja_klienta']
 
-    # Tworzenie binera
     optb = OptimalBinning(name=feature, dtype="numerical", solver="cp")
     optb.fit(X, y)
 
-    # Zapisanie IV i tabeli
-    iv_dict[feature] = optb.binning_table.iv
-    binning_tables[feature] = optb.binning_table.build()
+    # Najpierw budujemy tabelę
+    table = optb.binning_table.build()
+
+    # Potem dopiero zapisujemy IV i całą tabelę
+    iv_dict[feature] = table.iv
+    binning_tables[feature] = table
+
     
 # Posortuj zmienne wg IV malejąco
 iv_series = pd.Series(iv_dict).sort_values(ascending=False)
