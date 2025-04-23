@@ -88,7 +88,7 @@ df['intensity_rate'] = df['rata_miesieczna'] / df['scoring_FICO']
 
 st.markdown("""
 #### ✨ Nowe zmienne pochodne
-Na podstawie danych pierwotnych wygenerowano dodatkowe cechy:
+Na podstawie danych pierwotnych stworzono dodatkowe cechy:
 - `spread` – różnica między oprocentowaniem banku a konkurencją,
 - `margin` – marża banku względem kosztu pozyskania środków,
 - `rata_miesieczna` – szacunkowa wysokość miesięcznej raty,
@@ -136,12 +136,12 @@ iv_series = pd.Series(iv_dict).sort_values(ascending=False)
 
 
 st.subheader("📊 Siła predykcyjna zmiennych (IV)")
-
+st.markdown("Wykres poniżej pokazuje, które zmienne najlepiej rozróżniają klientów, którzy zaakceptowali ofertę, od tych, którzy jej nie przyjęli.")
 fig_iv, ax_iv = plt.subplots(figsize=(10, 6))
 sns.barplot(x=iv_series.values, y=iv_series.index, palette="viridis", ax=ax_iv)
 ax_iv.set_xlabel("Information Value (IV)")
 ax_iv.set_ylabel("Zmienna")
-ax_iv.set_title("IV zmiennych – malejąco")
+ax_iv.set_title("Information value zmiennych")
 st.pyplot(fig_iv)
 
 st.markdown("""
@@ -150,7 +150,5 @@ st.markdown("""
 - 0.02–0.1 – słaba  
 - 0.1–0.3 – średnia  
 - 0.3–0.5 – silna  
-- > 0.5 – bardzo silna
-
-Wykres poniżej pokazuje, które zmienne najlepiej rozróżniają klientów, którzy zaakceptowali ofertę, od tych, którzy jej nie przyjęli.
+- >0.5 – bardzo silna
 """)
