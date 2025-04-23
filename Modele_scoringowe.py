@@ -3,6 +3,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+from category_encoders.woe import WOEEncoder
+from sklearn.preprocessing import KBinsDiscretizer
+from optbinning import OptimalBinning
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -95,48 +98,34 @@ Na podstawie danych pierwotnych stworzono dodatkowe cechy:
 - `intensity_rate` – relacja raty miesięcznej do scoringu FICO (im wyższa, tym większe „obciążenie” dla klienta).
 """)
 
-from category_encoders.woe import WOEEncoder
-from sklearn.preprocessing import KBinsDiscretizer
-
-# Funkcja obliczająca IV dla jednej zmiennej
-def calculate_iv(df, feature, target, bins=10):
-    # Tworzymy kopię danych
-    df_temp = df[[feature, target]].dropna()
-    
-    # Jeżeli zmienna jest liczbowa – binujemy ją
-    if pd.api.types.is_numeric_dtype(df_temp[feature]):
-        df_temp['bin'] = pd.qcut(df_temp[feature], q=bins, duplicates='drop')
-    else:
-        df_temp['bin'] = df_temp[feature]
-    
-    # Obliczamy statystyki dla każdej grupy
-    grouped = df_temp.groupby('bin')
-    total_good = (df_temp[target] == 1).sum()
-    total_bad = (df_temp[target] == 0).sum()
-    
-    iv = 0
-    for name, group in grouped:
-        good = (group[target] == 1).sum()
-        bad = (group[target] == 0).sum()
-        if good > 0 and bad > 0:
-            dist_good = good / total_good
-            dist_bad = bad / total_bad
-            iv += (dist_good - dist_bad) * np.log(dist_good / dist_bad)
-    
-    return iv
-
 # Lista zmiennych do oceny
 features_to_check = ['scoring_FICO', 'okres_kredytu', 'kwota_kredytu',
                      'oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon',
                      'spread', 'margin', 'rata_miesieczna', 'intensity_rate']
 
-# Obliczenie IV dla każdej zmiennej
-iv_dict = {feature: calculate_iv(df, feature, 'akceptacja_klienta') for feature in features_to_check}
-iv_series = pd.Series(iv_dict).sort_values(ascending=False)
+# Słownik na IV i tabele
+iv_dict = {}
+binning_tables = {}
 
+# Obliczanie optymalnego binowania i IV
+for feature in features_to_check:
+    X = df[feature]
+    y = df['akceptacja_klienta']
+
+    # Tworzenie binera
+    optb = OptimalBinning(name=feature, dtype="numerical", solver="cp")
+    optb.fit(X, y)
+
+    # Zapisanie IV i tabeli
+    iv_dict[feature] = optb.iv
+    binning_tables[feature] = optb.binning_table.build()
+    
+# Posortuj zmienne wg IV malejąco
+iv_series = pd.Series(iv_dict).sort_values(ascending=False)
 
 st.subheader("📊 Siła predykcyjna zmiennych (IV)")
 st.markdown("Wykres poniżej pokazuje, które zmienne najlepiej rozróżniają klientów, którzy zaakceptowali ofertę, od tych, którzy jej nie przyjęli.")
+
 fig_iv, ax_iv = plt.subplots(figsize=(10, 6))
 sns.barplot(x=iv_series.values, y=iv_series.index, palette="viridis", ax=ax_iv)
 ax_iv.set_xlabel("Information Value (IV)")
@@ -150,5 +139,12 @@ st.markdown("""
 - 0.02–0.1 – słaba  
 - 0.1–0.3 – średnia  
 - 0.3–0.5 – silna  
-- \>0.5 – bardzo silna
+- > 0.5 – bardzo silna
 """)
+
+st.subheader("📄 Szczegóły binowania i WOE")
+
+selected_var = st.selectbox("Wybierz zmienną, aby zobaczyć tabelę binów:", iv_series.index.tolist())
+if selected_var:
+    table = binning_tables[selected_var]
+    st.dataframe(table, use_container_width=True)
