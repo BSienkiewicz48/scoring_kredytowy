@@ -116,8 +116,8 @@ for feature in features_to_check:
     table = optb.binning_table.build()
 
     # Pobieramy IV z analizy
-    analysis = table.analysis
-    iv_value = analysis['iv'] # Extract IV from the analysis results
+    analysis_results = optb.binning_table.analysis()
+    iv_value = analysis_results['iv'] # Extract IV from the analysis results
 
     # Zapisujemy
     iv_dict[feature] = iv_value # Store the extracted IV value
