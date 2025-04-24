@@ -361,12 +361,19 @@ def train_xgboost_model(df, target_col, features):
         X, y, test_size=0.1, random_state=42, stratify=y
     )
 
+    # Oblicz balans klas
+    ratio = (y_train == 0).sum() / (y_train == 1).sum()
+
     model = xgb.XGBClassifier(
-        n_estimators=100,
-        max_depth=4,
-        learning_rate=0.1,
+        n_estimators=300,               # więcej drzew
+        max_depth=4,                    # kontrola złożoności
+        learning_rate=0.03,             # wolniejsze uczenie = dokładniejsze
+        subsample=0.8,                  # losowe podzbiory danych
+        colsample_bytree=0.8,           # losowy wybór cech
+        scale_pos_weight=ratio,         # kompensacja niezbalansowanych klas
         use_label_encoder=False,
-        eval_metric='logloss'
+        eval_metric='auc',              # metryka na AUC
+        random_state=42
     )
 
     model.fit(X_train, y_train)
@@ -376,6 +383,7 @@ def train_xgboost_model(df, target_col, features):
     gini = 2 * auc - 1
 
     return model, auc, gini, y_pred_proba, y_test, X_test
+
 
 # =======================
 # 🔮 Trening modelu XGBoost
