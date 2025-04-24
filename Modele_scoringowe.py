@@ -365,9 +365,9 @@ def train_xgboost_model(df, target_col, features):
     ratio = (y_train == 0).sum() / (y_train == 1).sum()
 
     model = xgb.XGBClassifier(
-        n_estimators=50,               # więcej drzew
+        n_estimators=60,               # więcej drzew
         max_depth=4,                    # kontrola złożoności
-        learning_rate=0.05,             # wolniejsze uczenie = dokładniejsze
+        learning_rate=0.01,             # wolniejsze uczenie = dokładniejsze
         subsample=0.8,                  # losowe podzbiory danych
         colsample_bytree=0.8,           # losowy wybór cech
         scale_pos_weight=ratio,         # kompensacja niezbalansowanych klas
