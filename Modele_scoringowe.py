@@ -671,9 +671,9 @@ def draw_gauge(value, title):
             'axis': {'range': [0, 100]},
             'bar': {'color': "#00b894"},
             'steps': [
-                {'range': [0, 50], 'color': "#ffeaa7"},
-                {'range': [50, 75], 'color': "#fab1a0"},
-                {'range': [75, 100], 'color': "#55efc4"}
+                {'range': [0, 25], 'color': "#fab1a0"},
+                {'range': [25, 60], 'color': "#ffeaa7"},
+                {'range': [50, 100], 'color': "#55efc4"}
             ],
         }))
     return fig
