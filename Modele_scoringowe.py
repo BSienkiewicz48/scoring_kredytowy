@@ -10,6 +10,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, roc_curve, mean_absolute_error
 import xgboost as xgb
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -559,3 +561,76 @@ scorecard_xgb_woe_display = scorecard_xgb_woe_display[cols_order]
 
 
 st.dataframe(scorecard_xgb_woe_display, height=400, use_container_width=True, hide_index=True)
+
+# --------------------
+# 🎯 Wprowadzenie danych wejściowych przez użytkownika
+# --------------------
+st.subheader("🔢 Wprowadź dane klienta do predykcji")
+
+user_input = {}
+
+for feature in features_for_model:
+    min_val = float(df[feature].min())
+    max_val = float(df[feature].max())
+    mean_val = float(df[feature].mean())
+    user_input[feature] = st.slider(
+        label=f"{feature}",
+        min_value=min_val,
+        max_value=max_val,
+        value=mean_val,
+        step=(max_val - min_val) / 100
+    )
+
+user_input_df = pd.DataFrame([user_input])
+
+# --------------------
+# 🔮 Predykcje z modeli
+# --------------------
+# WOE model
+woe_transformed = encoder.transform(user_input_df[features_for_model])
+pred_woe = model.predict_proba(woe_transformed)[0][1]
+
+# XGBoost model (na surowych zmiennych)
+pred_xgb = model_xgb.predict_proba(user_input_df[features_for_model])[0][1]
+
+# XGBoost z WOE
+woe_cols = encoder.transform(user_input_df[features_for_model])
+woe_cols.columns = [f"{col}_woe" for col in woe_cols.columns]
+combined_input = pd.concat([user_input_df[features_for_model], woe_cols], axis=1)
+pred_xgb_woe = model_xgb_woe.predict_proba(combined_input)[0][1]
+
+# --------------------
+# 📊 Wykresy prędkości (gauge)
+# --------------------
+def draw_gauge(value, title):
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=value * 100,
+        domain={'x': [0, 1], 'y': [0, 1]},
+        title={'text': title},
+        gauge={
+            'axis': {'range': [0, 100]},
+            'bar': {'color': "#00b894"},
+            'steps': [
+                {'range': [0, 50], 'color': "#ffeaa7"},
+                {'range': [50, 75], 'color': "#fab1a0"},
+                {'range': [75, 100], 'color': "#55efc4"}
+            ],
+        }))
+    return fig
+
+st.subheader("📈 Predykcja scoringowa – wizualizacja")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.plotly_chart(draw_gauge(pred_woe, "WOE + RL"), use_container_width=True)
+with col2:
+    st.plotly_chart(draw_gauge(pred_xgb, "XGBoost"), use_container_width=True)
+with col3:
+    st.plotly_chart(draw_gauge(pred_xgb_woe, "XGBoost + WOE"), use_container_width=True)  
+
+st.markdown("""
+Każdy wykres pokazuje przewidywaną szansę akceptacji oferty kredytowej przez klienta w skali 0–100. 
+Im wyższy wynik – tym większe prawdopodobieństwo akceptacji według danego modelu.
+""")
