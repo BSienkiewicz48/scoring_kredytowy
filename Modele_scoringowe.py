@@ -292,7 +292,7 @@ st.dataframe(scorecard_display, height=400, use_container_width=True)
 
 st.subheader("🧮 Klasyczna karta scoringowa")
 
-@st.cache_data
+
 def build_scorecard(encoder, model, binning_tables):
     scorecard_rows = []
 
