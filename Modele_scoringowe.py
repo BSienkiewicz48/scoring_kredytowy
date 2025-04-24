@@ -568,20 +568,79 @@ st.dataframe(scorecard_xgb_woe_display, height=400, use_container_width=True, hi
 st.subheader("🔢 Wprowadź dane klienta do predykcji")
 
 user_input = {}
+base_features_for_input = []
+derived_features = ['spread', 'margin', 'rata_miesieczna', 'intensity_rate']
 
+# Identify base features needed for sliders
 for feature in features_for_model:
+    if feature not in derived_features:
+        base_features_for_input.append(feature)
+
+st.markdown("Ustaw wartości dla podstawowych cech:")
+
+# Create sliders only for base features
+for feature in base_features_for_input:
     min_val = float(df[feature].min())
     max_val = float(df[feature].max())
     mean_val = float(df[feature].mean())
+    # Adjust step for better usability, especially for percentages
+    if "oproc" in feature or "koszt" in feature:
+        step = 0.001 # Smaller step for percentages
+    elif feature == 'okres_kredytu':
+        step = 1.0 # Integer step for months
+    else:
+        step = (max_val - min_val) / 100 if max_val > min_val else 1.0 # Default step or 1 if min=max
+
     user_input[feature] = st.slider(
         label=f"{feature}",
         min_value=min_val,
         max_value=max_val,
         value=mean_val,
-        step=(max_val - min_val) / 100
+        step=step,
+        # Format percentages nicely
+        format="%.3f" if "oproc" in feature or "koszt" in feature else "%.2f"
     )
 
-user_input_df = pd.DataFrame([user_input])
+# Calculate derived features based on slider inputs
+# Ensure necessary base features are present before calculation
+calculated_derived = {}
+if 'oproc_propon' in user_input and 'oproc_konkur' in user_input:
+    calculated_derived['spread'] = user_input['oproc_propon'] - user_input['oproc_konkur']
+if 'oproc_propon' in user_input and 'koszt_pieniadza' in user_input:
+    calculated_derived['margin'] = user_input['oproc_propon'] - user_input['koszt_pieniadza']
+if 'kwota_kredytu' in user_input and 'okres_kredytu' in user_input:
+    # Avoid division by zero
+    calculated_derived['rata_miesieczna'] = user_input['kwota_kredytu'] / user_input['okres_kredytu'] if user_input['okres_kredytu'] != 0 else 0
+    if 'scoring_FICO' in user_input and 'rata_miesieczna' in calculated_derived:
+         # Avoid division by zero
+        calculated_derived['intensity_rate'] = calculated_derived['rata_miesieczna'] / user_input['scoring_FICO'] if user_input['scoring_FICO'] != 0 else 0
+
+# Display calculated derived features
+st.markdown("Obliczone cechy pochodne:")
+cols_derived = st.columns(len(derived_features))
+i = 0
+for feature in derived_features:
+    if feature in calculated_derived:
+        with cols_derived[i]:
+            st.metric(label=feature, value=f"{calculated_derived[feature]:.4f}")
+        i += 1
+
+# Combine base inputs and calculated derived features
+final_user_input = user_input.copy()
+final_user_input.update(calculated_derived)
+
+# Ensure all features required by the model are present, even if not calculated (use default/mean if needed)
+for feature in features_for_model:
+    if feature not in final_user_input:
+        # Provide a default value (e.g., mean) if a derived feature couldn't be calculated
+        final_user_input[feature] = df[feature].mean()
+
+
+# Create the DataFrame with the correct order of columns as expected by the models
+user_input_df = pd.DataFrame([final_user_input])[features_for_model]
+
+# Optionally display the final input DataFrame being used
+# st.write("Dane wejściowe dla modeli:", user_input_df)
 
 # --------------------
 # 🔮 Predykcje z modeli
