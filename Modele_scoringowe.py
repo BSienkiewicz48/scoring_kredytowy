@@ -289,3 +289,43 @@ scorecard['Score'] = np.round(scorecard['Prawdopodobieństwo'] * 100).astype(int
 scorecard_display = scorecard[['Prawdziwa klasa', 'Score', 'Decyzja modelu']]
 
 st.dataframe(scorecard_display, height=400, use_container_width=True)
+
+st.subheader("🧮 Klasyczna karta scoringowa")
+
+@st.cache_data
+def build_scorecard(encoder, model, binning_tables):
+    scorecard_rows = []
+
+    # Słownik: zmienna → współczynnik regresji
+    coefs = dict(zip(encoder.cols, model.coef_[0]))
+
+    for feature in encoder.cols:
+        coef = coefs[feature]
+        table = binning_tables[feature]
+
+        for i, row in table.iterrows():
+            bin_label = row["Przedział"]
+            woe = row["WOE"]
+            waga = round(coef * woe, 4)
+            scorecard_rows.append({
+                "Zmienna": feature,
+                "Przedział": bin_label,
+                "WOE": woe,
+                "Współczynnik RL": round(coef, 4),
+                "Waga modelu (WOE × coef)": waga
+            })
+
+    scorecard_df = pd.DataFrame(scorecard_rows)
+    return scorecard_df
+
+scorecard_df = build_scorecard(encoder, model, binning_tables)
+
+st.markdown("""
+Tabela poniżej przedstawia klasyczną kartę scoringową:  
+- Każda zmienna została podzielona na przedziały (biny)  
+- Dla każdego przedziału obliczono wartość WOE  
+- Następnie wyliczono „wagę” modelu: WOE × współczynnik regresji  
+Im wyższa wartość – tym bardziej pozytywny wpływ danego przedziału na wynik modelu.
+""")
+
+st.dataframe(scorecard_df, use_container_width=True)
