@@ -349,8 +349,6 @@ Im wyższa wartość – tym bardziej pozytywny wpływ danego przedziału na wyn
 
 st.dataframe(scorecard_df, use_container_width=True, hide_index=True)
 
-
-
 @st.cache_data
 def train_xgboost_model(df, target_col, features):
     X = df[features].copy()
@@ -383,7 +381,6 @@ def train_xgboost_model(df, target_col, features):
     gini = 2 * auc - 1
 
     return model, auc, gini, y_pred_proba, y_test, X_test
-
 
 # =======================
 # 🔮 Trening modelu XGBoost
@@ -444,3 +441,101 @@ scorecard_xgb_display = pd.concat([
 
 # Wyświetl tabelę
 st.dataframe(scorecard_xgb_display, height=400, use_container_width=True, hide_index=True)
+
+
+
+# ✅ Nowy model XGBoost z dodatkowymi kolumnami WOE
+
+@st.cache_data
+
+def train_xgboost_model_with_woe(df, target_col, features, encoder):
+    # Przygotowanie danych surowych i WOE
+    X_raw = df[features].copy()
+    X_woe = encoder.transform(df[features])
+
+    # Złącz dane: surowe + WOE (zmienne z sufiksem _woe)
+    X_woe.columns = [f"{col}_woe" for col in X_woe.columns]
+    X_combined = pd.concat([X_raw.reset_index(drop=True), X_woe.reset_index(drop=True)], axis=1)
+    y = df[target_col].reset_index(drop=True)
+
+    # Podział
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_combined, y, test_size=0.1, random_state=42, stratify=y
+    )
+
+    ratio = (y_train == 0).sum() / (y_train == 1).sum()
+
+    model = xgb.XGBClassifier(
+        n_estimators=60,
+        max_depth=4,
+        learning_rate=0.01,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        scale_pos_weight=ratio,
+        use_label_encoder=False,
+        eval_metric='auc',
+        random_state=42
+    )
+
+    model.fit(X_train, y_train)
+    y_pred_proba = model.predict_proba(X_test)[:, 1]
+    auc = roc_auc_score(y_test, y_pred_proba)
+    gini = 2 * auc - 1
+
+    return model, auc, gini, y_pred_proba, y_test, X_test, X_combined.columns.tolist()
+
+# =======================
+# 🤖 Model XGBoost (surowe + WOE)
+# =======================
+
+st.subheader("🤖 Model XGBoost z dodatkowymi zmiennymi WOE")
+
+model_xgb_woe, auc_xgb_woe, gini_xgb_woe, y_pred_xgb_woe, y_test_xgb_woe, X_test_xgb_woe, full_feature_list = train_xgboost_model_with_woe(
+    df, "akceptacja_klienta", features_for_model, encoder
+)
+
+st.markdown(f"""
+Model XGBoost został wytrenowany na połączonych zmiennych: surowych i ich odpowiednikach WOE.  
+**Wyniki modelu:**
+- **AUC**: {round(auc_xgb_woe, 4)}
+- **Gini**: {round(gini_xgb_woe, 4)}
+""")
+
+fpr_woe, tpr_woe, _ = roc_curve(y_test_xgb_woe, y_pred_xgb_woe)
+fig_roc_woe, ax_roc_woe = plt.subplots()
+ax_roc_woe.plot(fpr_woe, tpr_woe, label=f'AUC = {auc_xgb_woe:.3f}')
+ax_roc_woe.plot([0, 1], [0, 1], 'k--')
+ax_roc_woe.set_xlabel('False Positive Rate')
+ax_roc_woe.set_ylabel('True Positive Rate')
+ax_roc_woe.set_title('Krzywa ROC – XGBoost (z WOE)')
+ax_roc_woe.legend(loc='lower right')
+st.pyplot(fig_roc_woe)
+
+# =======================
+# 📋 Tabela predykcji – XGBoost z WOE
+# =======================
+st.subheader("📋 Tabela predykcji – XGBoost (z WOE)")
+st.markdown("Poniżej znajdują się przykładowe predykcje modelu XGBoost na zbiorze testowym z dodatkowymi cechami WOE.")
+
+scorecard_xgb_woe_indexed = pd.DataFrame({
+    'Prawdziwa klasa': y_test_xgb_woe,
+    'Prawdopodobieństwo': y_pred_xgb_woe
+}, index=y_test_xgb_woe.index)
+
+scorecard_xgb_woe_indexed['Decyzja modelu'] = (scorecard_xgb_woe_indexed['Prawdopodobieństwo'] >= 0.5).astype(int)
+scorecard_xgb_woe_indexed['Score'] = np.round(scorecard_xgb_woe_indexed['Prawdopodobieństwo'] * 100).astype(int)
+
+# Pobranie cech do scorecardu
+original_features_test_woe = df.loc[y_test_xgb_woe.index, features_for_model].reset_index(drop=True)
+woe_features_test = encoder.transform(df[features_for_model]).reset_index(drop=True).iloc[y_test_xgb_woe.index]
+woe_features_test.columns = [f"{col}_woe" for col in woe_features_test.columns]
+
+# Łączenie
+scorecard_xgb_woe_display = pd.concat([
+    scorecard_xgb_woe_indexed[['Score']],
+    original_features_test_woe,
+    woe_features_test,
+    scorecard_xgb_woe_indexed[['Prawdziwa klasa', 'Decyzja modelu']]
+], axis=1)
+
+st.dataframe(scorecard_xgb_woe_display, height=400, use_container_width=True, hide_index=True)
