@@ -10,7 +10,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, roc_curve, mean_absolute_error
 import xgboost as xgb
-from sklearn.model_selection import GridSearchCV
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -382,70 +381,15 @@ def train_xgboost_model(df, target_col, features):
 # 🔮 Trening modelu XGBoost
 # =======================
 
-@st.cache_data
-def train_xgboost_model(df, target_col, features):
-    X = df[features].copy()
-    y = df[target_col]
+st.subheader("🤖 Model scoringowy XGBoost")
 
-    # Podział na trening/test
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.1, random_state=42, stratify=y
-    )
-
-    # Definicja siatki parametrów do przeszukania
-    param_grid = {
-        'n_estimators': [100, 200],
-        'max_depth': [3, 4, 5],
-        'learning_rate': [0.05, 0.1],
-        'subsample': [0.8, 1.0],
-        'colsample_bytree': [0.8, 1.0]
-    }
-
-    xgb_model = xgb.XGBClassifier(
-        use_label_encoder=False,
-        eval_metric='logloss',
-        random_state=42
-    )
-
-    # Użycie GridSearchCV do znalezienia najlepszych parametrów
-    # Używamy mniejszej liczby podziałów (cv=3) dla szybszego działania w Streamlit
-    grid_search = GridSearchCV(
-        estimator=xgb_model,
-        param_grid=param_grid,
-        scoring='roc_auc',
-        cv=3, # Zmniejszono cv dla szybkości
-        n_jobs=-1, # Użyj wszystkich dostępnych rdzeni CPU
-        verbose=0 # Zmniejszono gadatliwość
-    )
-
-    grid_search.fit(X_train, y_train)
-
-    # Najlepszy model znaleziony przez GridSearchCV
-    best_model = grid_search.best_estimator_
-
-    # Predykcja na zbiorze testowym przy użyciu najlepszego modelu
-    y_pred_proba = best_model.predict_proba(X_test)[:, 1]
-    auc = roc_auc_score(y_test, y_pred_proba)
-    gini = 2 * auc - 1
-
-    return best_model, auc, gini, y_pred_proba, y_test, X_test, grid_search.best_params_
-
-# =======================
-# 🔮 Trening modelu XGBoost z optymalizacją hiperparametrów
-# =======================
-st.subheader("🤖 Model scoringowy XGBoost (z optymalizacją)")
-st.markdown("Przeprowadzono optymalizację hiperparametrów modelu XGBoost za pomocą GridSearchCV w celu znalezienia konfiguracji dającej potencjalnie lepsze wyniki AUC.")
-
-# Trenowanie modelu z optymalizacją
-model_xgb, auc_xgb, gini_xgb, y_pred_proba_xgb, y_test_xgb, X_test_xgb, best_params_xgb = train_xgboost_model(
+model_xgb, auc_xgb, gini_xgb, y_pred_proba_xgb, y_test_xgb, X_test_xgb = train_xgboost_model(
     df, "akceptacja_klienta", features_for_model
 )
 
 st.markdown(f"""
-Model XGBoost został wytrenowany na tych samych zmiennych co model WOE + RL, ale z dostrojonymi hiperparametrami.
-**Najlepsze znalezione parametry:** `{best_params_xgb}`
-
-**Wyniki zoptymalizowanego modelu:**
+Model XGBoost został wytrenowany na tych samych zmiennych co model WOE + RL.  
+**Wyniki modelu:**
 - **AUC**: {round(auc_xgb, 4)}
 - **Gini**: {round(gini_xgb, 4)}
 """)
@@ -457,16 +401,9 @@ ax_roc_xgb.plot(fpr_xgb, tpr_xgb, label=f'AUC = {auc_xgb:.3f}')
 ax_roc_xgb.plot([0, 1], [0, 1], 'k--')
 ax_roc_xgb.set_xlabel('False Positive Rate')
 ax_roc_xgb.set_ylabel('True Positive Rate')
-ax_roc_xgb.set_title('Krzywa ROC – Zoptymalizowany XGBoost')
+ax_roc_xgb.set_title('Krzywa ROC – XGBoost')
 ax_roc_xgb.legend(loc='lower right')
 st.pyplot(fig_roc_xgb)
-
-# Porównanie z poprzednim modelem
-st.markdown(f"""
-**Porównanie z modelem WOE + RL:**
-- Różnica AUC: {round(auc_xgb - auc, 4):+.4f}
-- Różnica Gini: {round(gini_xgb - gini, 4):+.4f}
-""")
 
 # =======================
 # 📋 Scorecard XGBoost – tabela predykcji
