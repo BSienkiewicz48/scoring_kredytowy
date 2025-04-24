@@ -524,17 +524,38 @@ scorecard_xgb_woe_indexed = pd.DataFrame({
 scorecard_xgb_woe_indexed['Decyzja modelu'] = (scorecard_xgb_woe_indexed['Prawdopodobieństwo'] >= 0.5).astype(int)
 scorecard_xgb_woe_indexed['Score'] = np.round(scorecard_xgb_woe_indexed['Prawdopodobieństwo'] * 100).astype(int)
 
-# Pobranie cech do scorecardu
-original_features_test_woe = df.loc[y_test_xgb_woe.index, features_for_model].reset_index(drop=True)
-woe_features_test = encoder.transform(df[features_for_model]).reset_index(drop=True).iloc[y_test_xgb_woe.index]
-woe_features_test.columns = [f"{col}_woe" for col in woe_features_test.columns]
+# Pobranie cech do scorecardu z X_test_xgb_woe, który zawiera już połączone cechy dla zbioru testowego
+# Upewnij się, że X_test_xgb_woe jest DataFrame z odpowiednimi nazwami kolumn
+if not isinstance(X_test_xgb_woe, pd.DataFrame):
+    X_test_xgb_woe = pd.DataFrame(X_test_xgb_woe, columns=full_feature_list, index=y_test_xgb_woe.index)
+else:
+    # Ensure index matches y_test_xgb_woe if it was reset during split
+    X_test_xgb_woe.index = y_test_xgb_woe.index
+
+
+# Wybierz oryginalne cechy z X_test_xgb_woe
+original_features_test_woe = X_test_xgb_woe[features_for_model].copy()
+
+# Wybierz cechy WOE z X_test_xgb_woe
+woe_feature_names = [f"{col}_woe" for col in features_for_model]
+woe_features_test = X_test_xgb_woe[woe_feature_names].copy()
+
+# Resetuj indeksy wszystkich części przed połączeniem, aby zapewnić wyrównanie
+scorecard_xgb_woe_indexed.reset_index(drop=True, inplace=True)
+original_features_test_woe.reset_index(drop=True, inplace=True)
+woe_features_test.reset_index(drop=True, inplace=True)
+
 
 # Łączenie
 scorecard_xgb_woe_display = pd.concat([
-    scorecard_xgb_woe_indexed[['Score']],
+    scorecard_xgb_woe_indexed[['Score', 'Prawdziwa klasa', 'Decyzja modelu']], # Przenieś Prawdziwa klasa i Decyzja modelu tutaj
     original_features_test_woe,
-    woe_features_test,
-    scorecard_xgb_woe_indexed[['Prawdziwa klasa', 'Decyzja modelu']]
+    woe_features_test
 ], axis=1)
+
+# Opcjonalnie: Zmień kolejność kolumn, jeśli chcesz 'Score' na początku
+cols_order = ['Score'] + features_for_model + woe_feature_names + ['Prawdziwa klasa', 'Decyzja modelu']
+scorecard_xgb_woe_display = scorecard_xgb_woe_display[cols_order]
+
 
 st.dataframe(scorecard_xgb_woe_display, height=400, use_container_width=True, hide_index=True)
