@@ -36,7 +36,7 @@ df = load_and_clean_data()
 
 # Wyświetlanie danych
 st.subheader("📌 Podgląd danych")
-st.dataframe(df.drop(columns=['LP']), height=400, use_container_width=True)
+st.dataframe(df.drop(columns=['LP']), height=400, use_container_width=True, hide_index=True)
 
 st.subheader("🔍 Informacje o danych")
 st.markdown("""
@@ -191,7 +191,7 @@ st.subheader("📄 Szczegóły binowania i WOE")
 selected_var = st.selectbox("Wybierz zmienną, aby zobaczyć tabelę binów:", iv_series.index.tolist())
 if selected_var:
     table = binning_tables[selected_var]
-    st.dataframe(table, use_container_width=True)
+    st.dataframe(table, use_container_width=True, hide_index=True)
 
 st.markdown("""
 **Opis tabeli binowania:**
@@ -305,7 +305,8 @@ scorecard_display = pd.concat([
 ], axis=1)
 
 # Display the enhanced scorecard
-st.dataframe(scorecard_display, height=400, use_container_width=True)
+st.dataframe(scorecard_display, height=400, use_container_width=True, hide_index=True)
+
 
 st.subheader("🧮 Klasyczna karta scoringowa")
 
@@ -345,4 +346,4 @@ Tabela poniżej przedstawia klasyczną kartę scoringową:
 Im wyższa wartość – tym bardziej pozytywny wpływ danego przedziału na wynik modelu.
 """)
 
-st.dataframe(scorecard_df, use_container_width=True)
+st.dataframe(scorecard_df, use_container_width=True, hide_index=True)
