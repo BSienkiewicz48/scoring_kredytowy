@@ -8,3 +8,4 @@ seaborn
 xgboost
 category_encoders
 optbinning
+plotly
