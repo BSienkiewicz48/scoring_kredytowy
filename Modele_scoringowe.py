@@ -9,6 +9,7 @@ from optbinning import OptimalBinning
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, roc_curve, mean_absolute_error
+import xgboost as xgb
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -347,3 +348,88 @@ Im wyższa wartość – tym bardziej pozytywny wpływ danego przedziału na wyn
 """)
 
 st.dataframe(scorecard_df, use_container_width=True, hide_index=True)
+
+
+
+@st.cache_data
+def train_xgboost_model(df, target_col, features):
+    X = df[features].copy()
+    y = df[target_col]
+
+    # Podział na trening/test
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.1, random_state=42, stratify=y
+    )
+
+    model = xgb.XGBClassifier(
+        n_estimators=100,
+        max_depth=4,
+        learning_rate=0.1,
+        use_label_encoder=False,
+        eval_metric='logloss'
+    )
+
+    model.fit(X_train, y_train)
+
+    y_pred_proba = model.predict_proba(X_test)[:, 1]
+    auc = roc_auc_score(y_test, y_pred_proba)
+    gini = 2 * auc - 1
+
+    return model, auc, gini, y_pred_proba, y_test, X_test
+
+# =======================
+# 🔮 Trening modelu XGBoost
+# =======================
+
+st.subheader("🤖 Model scoringowy XGBoost")
+
+model_xgb, auc_xgb, gini_xgb, y_pred_proba_xgb, y_test_xgb, X_test_xgb = train_xgboost_model(
+    df, "akceptacja_klienta", features_for_model
+)
+
+st.markdown(f"""
+Model XGBoost został wytrenowany na tych samych zmiennych co model WOE + RL.  
+**Wyniki modelu:**
+- **AUC**: {round(auc_xgb, 4)}
+- **Gini**: {round(gini_xgb, 4)}
+""")
+
+# ROC
+fpr_xgb, tpr_xgb, _ = roc_curve(y_test_xgb, y_pred_proba_xgb)
+fig_roc_xgb, ax_roc_xgb = plt.subplots()
+ax_roc_xgb.plot(fpr_xgb, tpr_xgb, label=f'AUC = {auc_xgb:.3f}')
+ax_roc_xgb.plot([0, 1], [0, 1], 'k--')
+ax_roc_xgb.set_xlabel('False Positive Rate')
+ax_roc_xgb.set_ylabel('True Positive Rate')
+ax_roc_xgb.set_title('Krzywa ROC – XGBoost')
+ax_roc_xgb.legend(loc='lower right')
+st.pyplot(fig_roc_xgb)
+
+# =======================
+# 📋 Scorecard XGBoost – tabela predykcji
+# =======================
+
+st.subheader("📋 Tabela predykcji – XGBoost")
+st.markdown("Poniżej znajdują się przykładowe predykcje modelu XGBoost na zbiorze testowym.")
+
+# Stwórz DataFrame z wynikiem
+scorecard_xgb_indexed = pd.DataFrame({
+    'Prawdziwa klasa': y_test_xgb,
+    'Prawdopodobieństwo': y_pred_proba_xgb
+}, index=y_test_xgb.index)
+
+scorecard_xgb_indexed['Decyzja modelu'] = (scorecard_xgb_indexed['Prawdopodobieństwo'] >= 0.5).astype(int)
+scorecard_xgb_indexed['Score'] = np.round(scorecard_xgb_indexed['Prawdopodobieństwo'] * 100).astype(int)
+
+# Pobierz cechy oryginalne dla testu
+original_features_test_xgb = df.loc[y_test_xgb.index, features_for_model]
+
+# Połącz Score, cechy i wyniki
+scorecard_xgb_display = pd.concat([
+    scorecard_xgb_indexed[['Score']],
+    original_features_test_xgb,
+    scorecard_xgb_indexed[['Prawdziwa klasa', 'Decyzja modelu']]
+], axis=1)
+
+# Wyświetl tabelę
+st.dataframe(scorecard_xgb_display, height=400, use_container_width=True, hide_index=True)
