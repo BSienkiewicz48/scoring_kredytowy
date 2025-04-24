@@ -676,6 +676,7 @@ def draw_gauge(value, title):
                 {'range': [60, 100], 'color': "#55efc4"}
             ],
         }))
+    fig.update_layout(margin=dict(t=10, b=10))  # Reduce top, bottom, left, and right margins
     return fig
 
 st.subheader("📈 Predykcja scoringowa – wizualizacja")
