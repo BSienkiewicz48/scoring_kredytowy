@@ -281,6 +281,11 @@ ax_roc.legend(loc='lower right')
 st.pyplot(fig_roc)
 
 # Tabela z wynikami
-st.subheader("📋 Tabela predykcji (scorecard)")
+st.subheader("📋 Tabela predykcji")
 st.markdown("Poniżej znajdują się przykładowe predykcje modelu na zbiorze testowym.")
-st.dataframe(scorecard.head(20), use_container_width=True)
+# Przelicz prawdopodobieństwo na score (0-100)
+scorecard['Score'] = np.round(scorecard['Prawdopodobieństwo'] * 100).astype(int)
+# Przygotuj DataFrame do wyświetlenia tylko z potrzebnymi kolumnami
+scorecard_display = scorecard[['Prawdziwa klasa', 'Score', 'Decyzja modelu']]
+
+st.dataframe(scorecard_display, height=400, use_container_width=True)
