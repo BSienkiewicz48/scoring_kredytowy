@@ -444,9 +444,8 @@ st.dataframe(scorecard_xgb_display, height=400, use_container_width=True, hide_i
 
 
 
-# ✅ Nowy model XGBoost z dodatkowymi kolumnami WOE
 
-@st.cache_data
+# ✅ Nowy model XGBoost z dodatkowymi kolumnami WOE
 
 def train_xgboost_model_with_woe(df, target_col, features, encoder):
     # Przygotowanie danych surowych i WOE
