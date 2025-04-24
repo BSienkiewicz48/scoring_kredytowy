@@ -392,7 +392,7 @@ def train_xgboost_model(df, target_col, features):
 st.subheader("🤖 Model scoringowy XGBoost")
 
 # Usuń 'kwota_kredytu' z listy cech dla XGBoost
-features_for_xgb_model = [f for f in features_for_model if f != 'kwota_kredytu']
+features_for_xgb_model = [f for f in features_for_model]
 
 model_xgb, auc_xgb, gini_xgb, y_pred_proba_xgb, y_test_xgb, X_test_xgb = train_xgboost_model(
     df, "akceptacja_klienta", features_for_xgb_model
