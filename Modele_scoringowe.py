@@ -673,7 +673,7 @@ def draw_gauge(value, title):
             'steps': [
                 {'range': [0, 25], 'color': "#fab1a0"},
                 {'range': [25, 60], 'color': "#ffeaa7"},
-                {'range': [50, 100], 'color': "#55efc4"}
+                {'range': [60, 100], 'color': "#55efc4"}
             ],
         }))
     return fig
