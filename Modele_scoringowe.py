@@ -6,6 +6,9 @@ import numpy as np
 from category_encoders.woe import WOEEncoder
 from sklearn.preprocessing import KBinsDiscretizer
 from optbinning import OptimalBinning
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, roc_curve, mean_absolute_error
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -206,3 +209,78 @@ Poniższa tabela przedstawia statystyki dla każdego przedziału (binu), na któ
 WOE i IV są używane w modelach scoringowych opartych na regresji logistycznej, aby przekształcić dane w bardziej informatywny i stabilny sposób.
 """)
 
+
+
+
+
+@st.cache_data
+def train_woe_model(df, target_col, features):
+    # WOE transformacja
+    encoder = WOEEncoder(cols=features)
+    X = df[features]
+    y = df[target_col]
+    X_woe = encoder.fit_transform(X, y)
+
+    # Podział na zbiór treningowy i testowy (90/10)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_woe, y, test_size=0.1, random_state=42, stratify=y
+    )
+
+    # Regresja logistyczna
+    model = LogisticRegression(max_iter=1000)
+    model.fit(X_train, y_train)
+
+    # Predykcja i ocena
+    y_pred_proba = model.predict_proba(X_test)[:, 1]
+    auc = roc_auc_score(y_test, y_pred_proba)
+    gini = 2 * auc - 1
+    error = np.mean(np.abs(y_test - y_pred_proba)) * 100  # średni błąd procentowy
+
+    # Scorecard (czyli tabela z predykcjami i score)
+    scorecard = pd.DataFrame({
+        'Prawdziwa klasa': y_test.values,
+        'Prawdopodobieństwo': np.round(y_pred_proba, 4),
+        'Decyzja modelu': (y_pred_proba >= 0.5).astype(int)
+    })
+
+    return model, encoder, auc, gini, error, scorecard, X_test, y_test, y_pred_proba
+
+# Wybierz zmienne do modelu (np. te z IV > 0.02)
+features_for_model = [col for col in iv_series.index if iv_series[col] > 0.02]
+
+st.subheader("🧪 Budowa modelu scoringowego WOE + regresja logistyczna")
+
+st.markdown(f"""
+Model został wytrenowany na zbiorze treningowym z losowym podziałem 90/10.  
+Wykorzystano transformację WOE na zmiennych o wartości IV > 0.02.  
+Wybrano {len(features_for_model)} zmiennych:  
+**{', '.join(features_for_model)}**
+""")
+
+model, encoder, auc, gini, error, scorecard, X_test, y_test, y_pred_proba = train_woe_model(
+    df, "akceptacja_klienta", features_for_model
+)
+
+# Metryki modelu
+st.subheader("📊 Ocena modelu")
+st.markdown(f"""
+- **AUC**: {round(auc, 4)}  
+- **Gini**: {round(gini, 4)}  
+- **Średni błąd predykcji**: {round(error, 2)}%
+""")
+
+# Wykres ROC
+fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+fig_roc, ax_roc = plt.subplots()
+ax_roc.plot(fpr, tpr, label=f'AUC = {auc:.3f}')
+ax_roc.plot([0, 1], [0, 1], 'k--')
+ax_roc.set_xlabel('False Positive Rate')
+ax_roc.set_ylabel('True Positive Rate')
+ax_roc.set_title('Krzywa ROC')
+ax_roc.legend(loc='lower right')
+st.pyplot(fig_roc)
+
+# Tabela z wynikami
+st.subheader("📋 Tabela predykcji (scorecard)")
+st.markdown("Poniżej znajdują się przykładowe predykcje modelu na zbiorze testowym.")
+st.dataframe(scorecard.head(20), use_container_width=True)
