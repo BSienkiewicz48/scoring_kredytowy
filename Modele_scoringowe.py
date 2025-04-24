@@ -669,7 +669,7 @@ def draw_gauge(value, title):
         title={'text': title},
         gauge={
             'axis': {'range': [0, 100]},
-            'bar': {'color': "orange"},
+            'bar': {'color': "red"},
             'steps': [
                 {'range': [0, 25], 'color': "#fab1a0"},
                 {'range': [25, 60], 'color': "#ffeaa7"},
