@@ -285,9 +285,26 @@ st.subheader("📋 Tabela predykcji")
 st.markdown("Poniżej znajdują się przykładowe predykcje modelu na zbiorze testowym.")
 # Przelicz prawdopodobieństwo na score (0-100)
 scorecard['Score'] = np.round(scorecard['Prawdopodobieństwo'] * 100).astype(int)
-# Przygotuj DataFrame do wyświetlenia tylko z potrzebnymi kolumnami
-scorecard_display = scorecard[['Prawdziwa klasa', 'Score', 'Decyzja modelu']]
+# Recreate scorecard with index to easily merge with original features
+scorecard_indexed = pd.DataFrame({
+    'Prawdziwa klasa': y_test,
+    'Prawdopodobieństwo': y_pred_proba
+}, index=y_test.index)
+scorecard_indexed['Decyzja modelu'] = (scorecard_indexed['Prawdopodobieństwo'] >= 0.5).astype(int)
+scorecard_indexed['Score'] = np.round(scorecard_indexed['Prawdopodobieństwo'] * 100).astype(int)
 
+# Get original features for the test set using the index
+original_features_test = df.loc[y_test.index, features_for_model]
+
+# Combine Score, original features, and other scorecard columns
+# Ensure 'Score' is the first column
+scorecard_display = pd.concat([
+    scorecard_indexed[['Score']],
+    original_features_test,
+    scorecard_indexed[['Prawdziwa klasa', 'Decyzja modelu']]
+], axis=1)
+
+# Display the enhanced scorecard
 st.dataframe(scorecard_display, height=400, use_container_width=True)
 
 st.subheader("🧮 Klasyczna karta scoringowa")
