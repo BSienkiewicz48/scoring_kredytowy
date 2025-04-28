@@ -353,13 +353,6 @@ st.dataframe(scorecard_df, use_container_width=True, hide_index=True)
 
 @st.cache_data
 def train_xgboost_model(df, target_col, features):
-    """
-    Trains an XGBoost model and calibrates its probabilities using Platt scaling.
-
-    Returns:
-        tuple: Contains the trained XGBoost model, the Platt scaler, AUC, Gini,
-               calibrated probabilities on the test set, y_test, and X_test.
-    """
     X = df[features].copy()
     y = df[target_col]
 
@@ -371,38 +364,25 @@ def train_xgboost_model(df, target_col, features):
     # Oblicz balans klas
     ratio = (y_train == 0).sum() / (y_train == 1).sum()
 
-    # Trenowanie modelu XGBoost
     model = xgb.XGBClassifier(
-        n_estimators=60,
-        max_depth=4,
-        learning_rate=0.01,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        scale_pos_weight=ratio,
+        n_estimators=60,               # więcej drzew
+        max_depth=4,                    # kontrola złożoności
+        learning_rate=0.01,             # wolniejsze uczenie = dokładniejsze
+        subsample=0.8,                  # losowe podzbiory danych
+        colsample_bytree=0.8,           # losowy wybór cech
+        scale_pos_weight=ratio,         # kompensacja niezbalansowanych klas
         use_label_encoder=False,
-        eval_metric='auc',
+        eval_metric='auc',              # metryka na AUC
         random_state=42
     )
+
     model.fit(X_train, y_train)
 
-    # Predykcja surowych prawdopodobieństw na zbiorze testowym
-    y_pred_proba_raw = model.predict_proba(X_test)[:, 1]
-
-    # Trenowanie skalera Platt (Regresja Logistyczna) na wynikach XGBoost
-    # Używamy surowych prawdopodobieństw jako cechy dla regresji logistycznej
-    platt_scaler = LogisticRegression()
-    # Reshape is needed as LogisticRegression expects 2D input
-    platt_scaler.fit(y_pred_proba_raw.reshape(-1, 1), y_test)
-
-    # Kalibracja prawdopodobieństw na zbiorze testowym
-    y_pred_proba_calibrated = platt_scaler.predict_proba(y_pred_proba_raw.reshape(-1, 1))[:, 1]
-
-    # Obliczenie metryk na skalibrowanych prawdopodobieństwach
-    auc = roc_auc_score(y_test, y_pred_proba_calibrated)
+    y_pred_proba = model.predict_proba(X_test)[:, 1]
+    auc = roc_auc_score(y_test, y_pred_proba)
     gini = 2 * auc - 1
 
-    # Zwracamy model XGBoost, model Platt, metryki i skalibrowane prawdopodobieństwa
-    return model, platt_scaler, auc, gini, y_pred_proba_calibrated, y_test, X_test
+    return model, auc, gini, y_pred_proba, y_test, X_test
 
 # =======================
 # 🔮 Trening modelu XGBoost
