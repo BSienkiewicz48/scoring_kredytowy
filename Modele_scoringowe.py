@@ -10,9 +10,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, roc_curve, mean_absolute_error
 import xgboost as xgb
-import streamlit as st
-import pandas as pd
-from sklearn.metrics import roc_auc_score
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
@@ -355,99 +352,37 @@ Im wyższa wartość – tym bardziej pozytywny wpływ danego przedziału na wyn
 st.dataframe(scorecard_df, use_container_width=True, hide_index=True)
 
 @st.cache_data
-# Wrapper class to handle the two-stage prediction (XGBoost + Platt Scaling)
-class CalibratedXGBWrapper:
-    def __init__(self, base_model, scaler):
-        self._base_model = base_model
-        self._scaler = scaler
-
-    def predict_proba(self, X):
-        """Predicts calibrated probabilities."""
-        # Get probability of class 1 from the base XGBoost model
-        base_preds_prob1 = self._base_model.predict_proba(X)[:, 1].reshape(-1, 1)
-        # Use the Platt scaler (Logistic Regression) to calibrate
-        # The scaler's predict_proba returns probabilities for both classes [prob0, prob1]
-        calibrated_preds_prob = self._scaler.predict_proba(base_preds_prob1)
-        # Ensure probabilities sum to 1 and are clipped
-        calibrated_preds_prob[:, 1] = np.clip(calibrated_preds_prob[:, 1], 0, 1)
-        calibrated_preds_prob[:, 0] = 1 - calibrated_preds_prob[:, 1]
-        return calibrated_preds_prob
-
-    def predict(self, X):
-        """Predicts class labels based on calibrated probability."""
-        proba = self.predict_proba(X)[:, 1]
-        return (proba >= 0.5).astype(int)
-
-# @st.cache_data # Caching model objects can be tricky, removed for simplicity during modification
 def train_xgboost_model(df, target_col, features):
-    """
-    Trains an XGBoost model and calibrates its probabilities using Platt scaling.
-
-    Args:
-        df (pd.DataFrame): Input dataframe.
-        target_col (str): Name of the target variable column.
-        features (list): List of feature column names.
-
-    Returns:
-        tuple: Contains the calibrated model wrapper, AUC, Gini,
-               calibrated probabilities on the test set, y_test, and X_test.
-    """
     X = df[features].copy()
     y = df[target_col]
 
-    # Split data: 80% train, 10% validation (for calibration), 10% test
-    X_train_val, X_test, y_train_val, y_test = train_test_split(
+    # Podział na trening/test
+    X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.1, random_state=42, stratify=y
     )
-    # Split the combined training/validation set into actual training and validation sets
-    # test_size=1/9 makes the validation set 1/9th of the 90% train_val data, which is 10% of the total
-    X_train, X_val, y_train, y_val = train_test_split(
-        X_train_val, y_train_val, test_size=1/9.0, random_state=42, stratify=y_train_val
-    )
 
-    # Calculate class balance for XGBoost training set
-    ratio = (y_train == 0).sum() / (y_train == 1).sum() if (y_train == 1).sum() > 0 else 1
+    # Oblicz balans klas
+    ratio = (y_train == 0).sum() / (y_train == 1).sum()
 
-    # 1. Train the base XGBoost model on the training set
-    xgb_model = xgb.XGBClassifier(
-        n_estimators=60,
-        max_depth=4,
-        learning_rate=0.01,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        scale_pos_weight=ratio,
+    model = xgb.XGBClassifier(
+        n_estimators=60,               # więcej drzew
+        max_depth=4,                    # kontrola złożoności
+        learning_rate=0.01,             # wolniejsze uczenie = dokładniejsze
+        subsample=0.8,                  # losowe podzbiory danych
+        colsample_bytree=0.8,           # losowy wybór cech
+        scale_pos_weight=ratio,         # kompensacja niezbalansowanych klas
         use_label_encoder=False,
-        eval_metric='auc',
+        eval_metric='auc',              # metryka na AUC
         random_state=42
     )
-    xgb_model.fit(X_train, y_train)
 
-    # 2. Get XGBoost predictions (probability of class 1) on the validation set
-    xgb_preds_val = xgb_model.predict_proba(X_val)[:, 1].reshape(-1, 1)
+    model.fit(X_train, y_train)
 
-    # 3. Train the Platt scaler (Logistic Regression) on validation predictions
-    platt_scaler = LogisticRegression()
-    platt_scaler.fit(xgb_preds_val, y_val)
-
-    # 4. Get XGBoost predictions (probability of class 1) on the test set
-    xgb_preds_test = xgb_model.predict_proba(X_test)[:, 1].reshape(-1, 1)
-
-    # 5. Calibrate the test set predictions using the trained Platt scaler
-    # Use the scaler's predict_proba to get calibrated probabilities for class 1
-    calibrated_proba = platt_scaler.predict_proba(xgb_preds_test)[:, 1]
-
-    # Ensure probabilities are strictly between 0 and 1 after calibration
-    calibrated_proba = np.clip(calibrated_proba, 1e-15, 1 - 1e-15) # Clipping for numerical stability
-
-    # 6. Evaluate performance using the calibrated probabilities
-    auc = roc_auc_score(y_test, calibrated_proba)
+    y_pred_proba = model.predict_proba(X_test)[:, 1]
+    auc = roc_auc_score(y_test, y_pred_proba)
     gini = 2 * auc - 1
 
-    # 7. Create the wrapper model that combines XGBoost and the scaler
-    calibrated_xgb_model = CalibratedXGBWrapper(xgb_model, platt_scaler)
-
-    # Return the wrapper model, metrics, calibrated probabilities, and test data
-    return calibrated_xgb_model, auc, gini, calibrated_proba, y_test, X_test
+    return model, auc, gini, y_pred_proba, y_test, X_test
 
 # =======================
 # 🔮 Trening modelu XGBoost
