@@ -476,7 +476,8 @@ def train_xgboost_model_with_woe(df, target_col, features, _encoder):
 
     ratio = (y_train == 0).sum() / (y_train == 1).sum()
 
-    model = xgb.XGBClassifier(
+    # Bazowy model XGBoost
+    base_model = xgb.XGBClassifier(
         n_estimators=60,
         max_depth=4,
         learning_rate=0.01,
@@ -488,7 +489,16 @@ def train_xgboost_model_with_woe(df, target_col, features, _encoder):
         random_state=42
     )
 
+    # Kalibracja przy użyciu Platt Scaling
+    model = CalibratedClassifierCV(base_model, method='sigmoid', cv='prefit')
+
+    # Najpierw fitujemy bazowy model
+    base_model.fit(X_train, y_train)
+
+    # Potem dopiero kalibrujemy (model wymaga wytrenowanego base_model)
     model.fit(X_train, y_train)
+
+    # Predykcje skalibrowane
     y_pred_proba = model.predict_proba(X_test)[:, 1]
     auc = roc_auc_score(y_test, y_pred_proba)
     gini = 2 * auc - 1
