@@ -12,6 +12,7 @@ from sklearn.metrics import roc_auc_score, roc_curve, mean_absolute_error
 import xgboost as xgb
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
+from sklearn.calibration import CalibratedClassifierCV
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -364,20 +365,29 @@ def train_xgboost_model(df, target_col, features):
     # Oblicz balans klas
     ratio = (y_train == 0).sum() / (y_train == 1).sum()
 
-    model = xgb.XGBClassifier(
-        n_estimators=60,               # więcej drzew
-        max_depth=4,                    # kontrola złożoności
-        learning_rate=0.01,             # wolniejsze uczenie = dokładniejsze
-        subsample=0.8,                  # losowe podzbiory danych
-        colsample_bytree=0.8,           # losowy wybór cech
-        scale_pos_weight=ratio,         # kompensacja niezbalansowanych klas
+    # Bazowy model XGBoost
+    base_model = xgb.XGBClassifier(
+        n_estimators=60,
+        max_depth=4,
+        learning_rate=0.01,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        scale_pos_weight=ratio,
         use_label_encoder=False,
-        eval_metric='auc',              # metryka na AUC
+        eval_metric='auc',
         random_state=42
     )
 
+    # Kalibracja przy użyciu Platt Scaling
+    model = CalibratedClassifierCV(base_model, method='sigmoid', cv='prefit')
+
+    # Najpierw fitujemy bazowy model
+    base_model.fit(X_train, y_train)
+
+    # Potem dopiero kalibrujemy (model wymaga wytrenowanego base_model)
     model.fit(X_train, y_train)
 
+    # Predykcje skalibrowane
     y_pred_proba = model.predict_proba(X_test)[:, 1]
     auc = roc_auc_score(y_test, y_pred_proba)
     gini = 2 * auc - 1
