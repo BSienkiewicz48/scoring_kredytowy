@@ -187,7 +187,14 @@ st.markdown("""
 - 0.02–0.1 – słaba  
 - 0.1–0.3 – średnia  
 - 0.3–0.5 – silna  
-- &gt; 0.5 – bardzo silna
+- > 0.5 – bardzo silna  
+
+---
+
+**Zasady preselekcji zmiennych do modelu:**  
+W celu wyboru zmiennych do modelu scoringowego zastosowano kryterium wartości IV.  
+Do dalszego modelowania zakwalifikowano zmienne, dla których IV przekroczyło próg 0.02 – co oznacza, że posiadają co najmniej słabą zdolność do rozróżniania klas (akceptacja vs brak akceptacji).  
+Dzięki temu model wykorzystuje tylko zmienne niosące istotną informację predykcyjną, co poprawia jego interpretowalność i stabilność.
 """)
 
 st.subheader("📄 Szczegóły binowania i WOE")
