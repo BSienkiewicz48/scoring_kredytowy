@@ -733,3 +733,53 @@ st.markdown("""
 Każdy wykres pokazuje przewidywaną szansę akceptacji oferty kredytowej przez klienta w skali 0–100. 
 Im wyższy wynik – tym większe prawdopodobieństwo akceptacji według danego modelu.
 """)
+
+# --------------------
+# 📤 Weryfikacja na danych testowych (.xlsx)
+# --------------------
+st.subheader("📂 Walidacja na zewnętrznym zbiorze testowym")
+
+uploaded_file = st.file_uploader("Załaduj plik Excel zawierający dane testowe (format taki sam jak oryginalny):", type=["xlsx"])
+
+if uploaded_file is not None:
+    test_df = pd.read_excel(uploaded_file)
+    test_df = clean_data(test_df)
+
+    # Inżynieria zmiennych pochodnych
+    test_df['spread'] = test_df['oproc_propon'] - test_df['oproc_konkur']
+    test_df['margin'] = test_df['oproc_propon'] - test_df['koszt_pieniadza']
+    test_df['rata_miesieczna'] = test_df['kwota_kredytu'] / test_df['okres_kredytu']
+    test_df['intensity_rate'] = test_df['rata_miesieczna'] / test_df['scoring_FICO']
+
+    # Sprawdź czy dane zawierają wszystkie wymagane kolumny
+    missing = [col for col in features_for_model if col not in test_df.columns]
+    if missing:
+        st.error(f"Brakuje następujących kolumn w zbiorze testowym: {missing}")
+    else:
+        X_test_final = test_df[features_for_model]
+        y_true = test_df['akceptacja_klienta']
+
+        # Model 1: WOE + RL
+        X_test_woe = encoder.transform(X_test_final)
+        y_pred_woe = model.predict_proba(X_test_woe)[:, 1]
+        auc_woe = roc_auc_score(y_true, y_pred_woe)
+
+        # Model 2: XGBoost
+        y_pred_xgb = model_xgb.predict_proba(X_test_final)[:, 1]
+        auc_xgb_test = roc_auc_score(y_true, y_pred_xgb)
+
+        # Model 3: XGBoost + WOE
+        X_test_woe_cols = encoder.transform(X_test_final)
+        X_test_woe_cols.columns = [f"{col}_woe" for col in X_test_woe_cols.columns]
+        X_test_combined = pd.concat([X_test_final.reset_index(drop=True), X_test_woe_cols.reset_index(drop=True)], axis=1)
+        y_pred_xgb_woe = model_xgb_woe.predict_proba(X_test_combined)[:, 1]
+        auc_xgb_woe_test = roc_auc_score(y_true, y_pred_xgb_woe)
+
+        st.success("✅ Pomyślnie obliczono AUC na zbiorze testowym!")
+
+        st.markdown(f"""
+        **Wyniki na zbiorze testowym:**
+        - **WOE + RL** – AUC: `{auc_woe:.4f}`
+        - **XGBoost** – AUC: `{auc_xgb_test:.4f}`
+        - **XGBoost + WOE** – AUC: `{auc_xgb_woe_test:.4f}`
+        """)
