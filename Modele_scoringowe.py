@@ -379,7 +379,7 @@ def train_xgboost_model(df, target_col, features):
     )
 
     # Kalibracja przy użyciu Platt Scaling
-    model = CalibratedClassifierCV(base_model, method='sigmoid', cv='prefit')
+    model = CalibratedClassifierCV(base_model, method='isotonic', cv='prefit')
 
     # Najpierw fitujemy bazowy model
     base_model.fit(X_train, y_train)
@@ -490,7 +490,7 @@ def train_xgboost_model_with_woe(df, target_col, features, _encoder):
     )
 
     # Kalibracja przy użyciu Platt Scaling
-    model = CalibratedClassifierCV(base_model, method='sigmoid', cv='prefit')
+    model = CalibratedClassifierCV(base_model, method='isotonic', cv='prefit')
 
     # Najpierw fitujemy bazowy model
     base_model.fit(X_train, y_train)
