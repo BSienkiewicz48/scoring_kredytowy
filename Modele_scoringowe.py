@@ -259,6 +259,9 @@ Model został wytrenowany na zbiorze treningowym z losowym podziałem 90/10.
 Wykorzystano transformację WOE na zmiennych o wartości IV > 0.02.  
 Wybrano {len(features_for_model)} zmiennych:  
 **{', '.join(features_for_model)}**
+
+W przypadku modelu WOE + regresja logistyczna wynik scoringowy uzyskano poprzez bezpośrednie przemnożenie prawdopodobieństwa przewidzianego przez model przez 100.  
+Otrzymany wynik reprezentuje więc prawdopodobieństwo akceptacji oferty w skali 0–100 co jest jednocześnie scoringiem.
 """)
 
 model, encoder, auc, gini, error, scorecard, X_test, y_test, y_pred_proba = train_woe_model(
@@ -409,10 +412,15 @@ model_xgb, auc_xgb, gini_xgb, y_pred_proba_xgb, y_test_xgb, X_test_xgb = train_x
 
 st.markdown(f"""
 Model XGBoost został wytrenowany na tych samych zmiennych co model WOE + RL.  
+Do kalibracji modelu zastosowano metodę **Platt Scaling** (dokładniej: **isotonic regression**) przy użyciu klasy `CalibratedClassifierCV`.  
+Dzięki temu wyjściowe prawdopodobieństwa modelu zostały dopasowane do rozkładu obserwowanego na zbiorze treningowym,  
+a wynik scoringowy reprezentuje już skalibrowane prawdopodobieństwo akceptacji oferty.  
+
 **Wyniki modelu:**
 - **AUC**: {round(auc_xgb, 4)}
 - **Gini**: {round(gini_xgb, 4)}
 """)
+
 
 # ROC
 fpr_xgb, tpr_xgb, _ = roc_curve(y_test_xgb, y_pred_proba_xgb)
@@ -516,11 +524,15 @@ model_xgb_woe, auc_xgb_woe, gini_xgb_woe, y_pred_xgb_woe, y_test_xgb_woe, X_test
 )
 
 st.markdown(f"""
-Model XGBoost został wytrenowany na połączonych zmiennych: surowych i ich odpowiednikach WOE.  
+Model XGBoost został wytrenowany na zestawie cech zawierającym zarówno surowe zmienne, jak i ich odpowiedniki po transformacji WOE.  
+Do kalibracji modelu wykorzystano metodę **Platt Scaling (isotonic regression)** poprzez `CalibratedClassifierCV`.  
+Dzięki temu predykcje modelu są dopasowane do rozkładu rzeczywistych odpowiedzi i można je traktować jako skalibrowane prawdopodobieństwo akceptacji oferty.  
+
 **Wyniki modelu:**
 - **AUC**: {round(auc_xgb_woe, 4)}
 - **Gini**: {round(gini_xgb_woe, 4)}
 """)
+
 
 fpr_woe, tpr_woe, _ = roc_curve(y_test_xgb_woe, y_pred_xgb_woe)
 fig_roc_woe, ax_roc_woe = plt.subplots()
