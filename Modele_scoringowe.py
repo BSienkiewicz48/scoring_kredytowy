@@ -13,6 +13,8 @@ import xgboost as xgb
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from sklearn.calibration import CalibratedClassifierCV
+import joblib
+import io
 
 # Funkcja czyszcząca dane
 def clean_data(df):
@@ -813,3 +815,49 @@ if uploaded_file is not None:
         cols_to_display.extend(score_cols)
         
         st.dataframe(test_df_original_for_display[cols_to_display], height=400, use_container_width=True, hide_index=True)
+
+
+st.subheader("💾 Pobierz wytrenowane modele")
+
+# Serializacja modelu WOE + RL
+model_woe_rl_bytes = io.BytesIO()
+joblib.dump(model, model_woe_rl_bytes)
+model_woe_rl_bytes.seek(0)
+
+# Serializacja modelu XGBoost
+model_xgb_bytes = io.BytesIO()
+joblib.dump(model_xgb, model_xgb_bytes)
+model_xgb_bytes.seek(0)
+
+# Serializacja modelu XGBoost + WOE
+model_xgb_woe_bytes = io.BytesIO()
+joblib.dump(model_xgb_woe, model_xgb_woe_bytes)
+model_xgb_woe_bytes.seek(0)
+
+col_dl1, col_dl2, col_dl3 = st.columns(3)
+
+with col_dl1:
+    st.download_button(
+        label="Pobierz model WOE + RL (.pkl)",
+        data=model_woe_rl_bytes,
+        file_name="model_woe_rl.pkl",
+        mime="application/octet-stream"
+    )
+
+with col_dl2:
+    st.download_button(
+        label="Pobierz model XGBoost (.pkl)",
+        data=model_xgb_bytes,
+        file_name="model_xgboost.pkl",
+        mime="application/octet-stream"
+    )
+
+with col_dl3:
+    st.download_button(
+        label="Pobierz model XGBoost + WOE (.pkl)",
+        data=model_xgb_woe_bytes,
+        file_name="model_xgboost_woe.pkl",
+        mime="application/octet-stream"
+    )
+
+st.markdown("Powyższe przyciski umożliwiają pobranie wytrenowanych modeli w formacie `.pkl` (serializowane obiekty Python).")
