@@ -743,6 +743,7 @@ uploaded_file = st.file_uploader("Załaduj plik Excel zawierający dane testowe 
 
 if uploaded_file is not None:
     test_df = pd.read_excel(uploaded_file)
+    test_df_original_for_display = test_df.copy() # Keep a copy for display
     test_df = clean_data(test_df)
 
     # Inżynieria zmiennych pochodnych
@@ -757,29 +758,58 @@ if uploaded_file is not None:
         st.error(f"Brakuje następujących kolumn w zbiorze testowym: {missing}")
     else:
         X_test_final = test_df[features_for_model]
-        y_true = test_df['akceptacja_klienta']
+        
+        # Ensure 'akceptacja_klienta' exists for AUC calculation, if not, skip AUC
+        y_true = None
+        if 'akceptacja_klienta' in test_df.columns:
+            y_true = test_df['akceptacja_klienta']
+        else:
+            st.warning("Kolumna 'akceptacja_klienta' nie została znaleziona w pliku. AUC nie zostanie obliczone.")
+
 
         # Model 1: WOE + RL
         X_test_woe = encoder.transform(X_test_final)
-        y_pred_woe = model.predict_proba(X_test_woe)[:, 1]
-        auc_woe = roc_auc_score(y_true, y_pred_woe)
+        y_pred_woe_proba = model.predict_proba(X_test_woe)[:, 1]
+        test_df_original_for_display['Score_WOE_RL'] = np.round(y_pred_woe_proba * 100).astype(int)
+        auc_woe = roc_auc_score(y_true, y_pred_woe_proba) if y_true is not None else "N/A"
+
 
         # Model 2: XGBoost
-        y_pred_xgb = model_xgb.predict_proba(X_test_final)[:, 1]
-        auc_xgb_test = roc_auc_score(y_true, y_pred_xgb)
+        y_pred_xgb_proba = model_xgb.predict_proba(X_test_final)[:, 1]
+        test_df_original_for_display['Score_XGBoost'] = np.round(y_pred_xgb_proba * 100).astype(int)
+        auc_xgb_test = roc_auc_score(y_true, y_pred_xgb_proba) if y_true is not None else "N/A"
 
         # Model 3: XGBoost + WOE
         X_test_woe_cols = encoder.transform(X_test_final)
         X_test_woe_cols.columns = [f"{col}_woe" for col in X_test_woe_cols.columns]
         X_test_combined = pd.concat([X_test_final.reset_index(drop=True), X_test_woe_cols.reset_index(drop=True)], axis=1)
-        y_pred_xgb_woe = model_xgb_woe.predict_proba(X_test_combined)[:, 1]
-        auc_xgb_woe_test = roc_auc_score(y_true, y_pred_xgb_woe)
+        y_pred_xgb_woe_proba = model_xgb_woe.predict_proba(X_test_combined)[:, 1]
+        test_df_original_for_display['Score_XGBoost_WOE'] = np.round(y_pred_xgb_woe_proba * 100).astype(int)
+        auc_xgb_woe_test = roc_auc_score(y_true, y_pred_xgb_woe_proba) if y_true is not None else "N/A"
 
-        st.success("✅ Pomyślnie obliczono AUC na zbiorze testowym!")
+        st.success("✅ Pomyślnie przetworzono zbiór testowy!")
+
+        auc_woe_display = f"{auc_woe:.4f}" if isinstance(auc_woe, float) else auc_woe
+        auc_xgb_test_display = f"{auc_xgb_test:.4f}" if isinstance(auc_xgb_test, float) else auc_xgb_test
+        auc_xgb_woe_test_display = f"{auc_xgb_woe_test:.4f}" if isinstance(auc_xgb_woe_test, float) else auc_xgb_woe_test
 
         st.markdown(f"""
         **Wyniki na zbiorze testowym:**
-        - **WOE + RL** – AUC: `{auc_woe:.4f}`
-        - **XGBoost** – AUC: `{auc_xgb_test:.4f}`
-        - **XGBoost + WOE** – AUC: `{auc_xgb_woe_test:.4f}`
+        - **WOE + RL** – AUC: `{auc_woe_display}`
+        - **XGBoost** – AUC: `{auc_xgb_test_display}`
+        - **XGBoost + WOE** – AUC: `{auc_xgb_woe_test_display}`
         """)
+
+        st.markdown("#### Wyniki scoringu dla wgranego zbioru:")
+        
+        # Select columns for display: original columns + new score columns
+        # Ensure score columns are at the end or in a specific order if desired
+        cols_to_display = list(test_df_original_for_display.columns)
+        # Move score columns to the end if they are not already
+        score_cols = ['Score_WOE_RL', 'Score_XGBoost', 'Score_XGBoost_WOE']
+        for sc in score_cols:
+            if sc in cols_to_display:
+                cols_to_display.remove(sc)
+        cols_to_display.extend(score_cols)
+        
+        st.dataframe(test_df_original_for_display[cols_to_display], height=400, use_container_width=True, hide_index=True)
