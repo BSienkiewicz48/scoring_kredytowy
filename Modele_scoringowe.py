@@ -26,7 +26,7 @@ def clean_data(df):
     return df
 
 # Tytuł aplikacji
-st.title("📊 Scoring kredytowy – eksploracja danych")
+st.title("📊 Scoring kredytowy ")
 
 st.markdown("Celem tego narzędzia jest przewidywanie, czy dany klient zaakceptuje przedstawioną ofertę kredytową. Model zwraca wynik punktowy – im wyższy wynik, tym większe prawdopodobieństwo, że klient skorzysta z oferty. ")
 
