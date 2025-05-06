@@ -183,17 +183,17 @@ st.pyplot(fig_iv)
 
 st.markdown("""
 **Interpretacja IV (Information Value):**
-- `< 0.02` – brak predykcyjnej mocy  
-- `0.02–0.1` – słaba  
-- `0.1–0.3` – średnia  
-- `0.3–0.5` – silna  
-- `> 0.5` – bardzo silna  
+- < 0.02 – brak predykcyjnej mocy  
+- 0.02–0.1 – słaba  
+- 0.1–0.3 – średnia  
+- 0.3–0.5 – silna  
+- `> 0.5 – bardzo silna  
 
 ---
 
 **Zasady preselekcji zmiennych do modelu:**  
 W celu wyboru zmiennych do modelu scoringowego zastosowano kryterium wartości IV.  
-Do dalszego modelowania zakwalifikowano zmienne, dla których IV przekroczyło próg `0.02` – co oznacza, że posiadają co najmniej słabą zdolność do rozróżniania klas (akceptacja vs brak akceptacji).  
+Do dalszego modelowania zakwalifikowano zmienne, dla których IV przekroczyło próg 0.02 – co oznacza, że posiadają co najmniej słabą zdolność do rozróżniania klas (akceptacja vs brak akceptacji).  
 Dzięki temu model wykorzystuje tylko zmienne niosące istotną informację predykcyjną, co poprawia jego interpretowalność i stabilność.
 """)
 
