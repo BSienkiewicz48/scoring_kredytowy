@@ -943,7 +943,7 @@ st.download_button(
 
 
 st.markdown("""
-Poniżej możesz pobrać wszystkie niezbędne pliki `.pkl`, które pozwolą na uruchomienie scoringu poza aplikacją Streamlit – np. w środowisku R z wykorzystaniem pakietu `reticulate` lub w czystym Pythonie.
+Powyżej możesz pobrać wszystkie niezbędne pliki `.pkl`, które pozwolą na uruchomienie scoringu poza aplikacją Streamlit – np. w środowisku R z wykorzystaniem pakietu `reticulate` lub w czystym Pythonie.
 
 W paczce znajdziesz:
 - wytrenowane modele: `WOE + RL`, `XGBoost`, `XGBoost + WOE`,
