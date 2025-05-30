@@ -870,7 +870,8 @@ features_bytes = io.BytesIO()
 joblib.dump(features_for_model, features_bytes)
 features_bytes.seek(0)
 
-col_dl4, col_dl5 = st.columns(2)
+# Ustaw 3 przyciski w jednym wierszu
+col_dl4, col_dl5, col_dl6 = st.columns(3)
 with col_dl4:
     st.download_button(
         label="Pobierz encoder WOE (.pkl)",
@@ -886,7 +887,9 @@ with col_dl5:
         mime="application/octet-stream"
     )
 
-
+with col_dl6:
+    # Funkcja inżynierii cech (możesz dodać serializację jeśli chcesz)
+    pass  # Możesz tu dodać np. pobieranie feature engineering jeśli chcesz
 
 def scoring_function(df_input):
     import pandas as pd
