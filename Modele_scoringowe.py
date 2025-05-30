@@ -870,7 +870,7 @@ features_bytes = io.BytesIO()
 joblib.dump(features_for_model, features_bytes)
 features_bytes.seek(0)
 
-# Ustaw 3 przyciski w jednym wierszu
+
 col_dl4, col_dl5, col_dl6 = st.columns(3)
 with col_dl4:
     st.download_button(
@@ -952,7 +952,6 @@ W paczce znajdziesz:
 - wytrenowane modele: `WOE + RL`, `XGBoost`, `XGBoost + WOE`,
 - encoder WOE (`woe_encoder.pkl`),
 - listę zmiennych użytych w modelu (`selected_features.pkl`),
-- funkcję inżynierii cech (`feature_engineering.pkl`),
 - funkcję scorującą (`scoring_function.pkl`), która przyjmuje `DataFrame` i zwraca go z trzema kolumnami scoringowymi.
 
 Wystarczy załadować dane w tym samym formacie co oryginalny zbiór i przekazać je do funkcji `scoring_function`.  
