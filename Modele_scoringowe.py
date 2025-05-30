@@ -860,4 +860,30 @@ with col_dl3:
         mime="application/octet-stream"
     )
 
+    # Serializacja encodera WOE
+    encoder_bytes = io.BytesIO()
+    joblib.dump(encoder, encoder_bytes)
+    encoder_bytes.seek(0)
+
+    # Serializacja listy wybranych cech (features_for_model)
+    features_bytes = io.BytesIO()
+    joblib.dump(features_for_model, features_bytes)
+    features_bytes.seek(0)
+
+    col_dl4, col_dl5 = st.columns(2)
+    with col_dl4:
+        st.download_button(
+            label="Pobierz encoder WOE (.pkl)",
+            data=encoder_bytes,
+            file_name="woe_encoder.pkl",
+            mime="application/octet-stream"
+        )
+    with col_dl5:
+        st.download_button(
+            label="Pobierz listę cech (.pkl)",
+            data=features_bytes,
+            file_name="selected_features.pkl",
+            mime="application/octet-stream"
+        )
+
 st.markdown("Powyższe przyciski umożliwiają pobranie wytrenowanych modeli w formacie `.pkl` (serializowane obiekty Python).")
