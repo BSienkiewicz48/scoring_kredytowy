@@ -887,27 +887,72 @@ with col_dl5:
     )
 
 
-# 💾 Pobierz funkcję inżynierii cech (feature engineering) jako .pkl
 
-# Funkcja do wyliczania zmiennych pochodnych (feature engineering)
-def feature_engineering(input_df):
-    df = input_df.copy()
+def scoring_function(df_input):
+    import pandas as pd
+    import numpy as np
+    import joblib
+
+    # Wczytaj modele i encoder
+    model_woe_rl = joblib.load("model_woe_rl.pkl")
+    model_xgb = joblib.load("model_xgboost.pkl")
+    model_xgb_woe = joblib.load("model_xgboost_woe.pkl")
+    encoder = joblib.load("woe_encoder.pkl")
+    features_for_model = joblib.load("selected_features.pkl")
+
+    # Feature engineering
+    df = df_input.copy()
+    df['kwota_kredytu'] = df['kwota_kredytu'].replace('[\$,]', '', regex=True).astype(float)
+    for col in ['oproc_refin', 'oproc_konkur', 'koszt_pieniadza', 'oproc_propon']:
+        df[col] = pd.to_numeric(df[col].astype(str).str.replace('%', '', regex=False), errors='coerce')
     df['spread'] = df['oproc_propon'] - df['oproc_konkur']
     df['margin'] = df['oproc_propon'] - df['koszt_pieniadza']
     df['rata_miesieczna'] = df['kwota_kredytu'] / df['okres_kredytu']
     df['intensity_rate'] = df['rata_miesieczna'] / df['scoring_FICO']
+
+    # Wyciągamy cechy
+    X = df[features_for_model].copy()
+
+    # Model 1 – WOE + RL
+    X_woe = encoder.transform(X)
+    df['Score_WOE_RL'] = np.round(model_woe_rl.predict_proba(X_woe)[:, 1] * 100).astype(int)
+
+    # Model 2 – XGBoost
+    df['Score_XGBoost'] = np.round(model_xgb.predict_proba(X)[:, 1] * 100).astype(int)
+
+    # Model 3 – XGBoost + WOE
+    X_woe.columns = [f"{col}_woe" for col in X_woe.columns]
+    X_combined = pd.concat([X.reset_index(drop=True), X_woe.reset_index(drop=True)], axis=1)
+    df['Score_XGBoost_WOE'] = np.round(model_xgb_woe.predict_proba(X_combined)[:, 1] * 100).astype(int)
+
     return df
 
-# Serializacja funkcji feature_engineering
-feature_eng_bytes = io.BytesIO()
-joblib.dump(feature_engineering, feature_eng_bytes)
-feature_eng_bytes.seek(0)
+
+scoring_pickle = io.BytesIO()
+joblib.dump(scoring_function, scoring_pickle)
+scoring_pickle.seek(0)
 
 st.download_button(
-    label="Pobierz funkcję feature engineering (.pkl)",
-    data=feature_eng_bytes,
-    file_name="feature_engineering.pkl",
+    label="📥 Pobierz funkcję scorującą (.pkl)",
+    data=scoring_pickle,
+    file_name="scoring_function.pkl",
     mime="application/octet-stream"
 )
 
-st.markdown("Powyższe przyciski umożliwiają pobranie wytrenowanych modeli w formacie `.pkl` (serializowane obiekty Python).")
+
+
+
+st.markdown("""
+Poniżej możesz pobrać wszystkie niezbędne pliki `.pkl`, które pozwolą na uruchomienie scoringu poza aplikacją Streamlit – np. w środowisku R z wykorzystaniem pakietu `reticulate` lub w czystym Pythonie.
+
+W paczce znajdziesz:
+- wytrenowane modele: `WOE + RL`, `XGBoost`, `XGBoost + WOE`,
+- encoder WOE (`woe_encoder.pkl`),
+- listę zmiennych użytych w modelu (`selected_features.pkl`),
+- funkcję inżynierii cech (`feature_engineering.pkl`),
+- funkcję scorującą (`scoring_function.pkl`), która przyjmuje `DataFrame` i zwraca go z trzema kolumnami scoringowymi.
+
+Wystarczy załadować dane w tym samym formacie co oryginalny zbiór i przekazać je do funkcji `scoring_function`.  
+Zwrócony obiekt będzie zawierał wyniki scoringu dla każdego z modeli.
+""")
+
