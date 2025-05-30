@@ -865,25 +865,49 @@ with col_dl3:
     joblib.dump(encoder, encoder_bytes)
     encoder_bytes.seek(0)
 
-    # Serializacja listy wybranych cech (features_for_model)
-    features_bytes = io.BytesIO()
-    joblib.dump(features_for_model, features_bytes)
-    features_bytes.seek(0)
+# Serializacja listy wybranych cech (features_for_model)
+features_bytes = io.BytesIO()
+joblib.dump(features_for_model, features_bytes)
+features_bytes.seek(0)
 
-    col_dl4, col_dl5 = st.columns(2)
-    with col_dl4:
-        st.download_button(
-            label="Pobierz encoder WOE (.pkl)",
-            data=encoder_bytes,
-            file_name="woe_encoder.pkl",
-            mime="application/octet-stream"
-        )
-    with col_dl5:
-        st.download_button(
-            label="Pobierz listę cech (.pkl)",
-            data=features_bytes,
-            file_name="selected_features.pkl",
-            mime="application/octet-stream"
-        )
+col_dl4, col_dl5 = st.columns(2)
+with col_dl4:
+    st.download_button(
+        label="Pobierz encoder WOE (.pkl)",
+        data=encoder_bytes,
+        file_name="woe_encoder.pkl",
+        mime="application/octet-stream"
+    )
+with col_dl5:
+    st.download_button(
+        label="Pobierz listę cech (.pkl)",
+        data=features_bytes,
+        file_name="selected_features.pkl",
+        mime="application/octet-stream"
+    )
+
+
+# 💾 Pobierz funkcję inżynierii cech (feature engineering) jako .pkl
+
+# Funkcja do wyliczania zmiennych pochodnych (feature engineering)
+def feature_engineering(input_df):
+    df = input_df.copy()
+    df['spread'] = df['oproc_propon'] - df['oproc_konkur']
+    df['margin'] = df['oproc_propon'] - df['koszt_pieniadza']
+    df['rata_miesieczna'] = df['kwota_kredytu'] / df['okres_kredytu']
+    df['intensity_rate'] = df['rata_miesieczna'] / df['scoring_FICO']
+    return df
+
+# Serializacja funkcji feature_engineering
+feature_eng_bytes = io.BytesIO()
+joblib.dump(feature_engineering, feature_eng_bytes)
+feature_eng_bytes.seek(0)
+
+st.download_button(
+    label="Pobierz funkcję feature engineering (.pkl)",
+    data=feature_eng_bytes,
+    file_name="feature_engineering.pkl",
+    mime="application/octet-stream"
+)
 
 st.markdown("Powyższe przyciski umożliwiają pobranie wytrenowanych modeli w formacie `.pkl` (serializowane obiekty Python).")
