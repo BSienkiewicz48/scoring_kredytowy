@@ -958,3 +958,68 @@ Wystarczy załadować dane w tym samym formacie co oryginalny zbiór i przekaza�
 Zwrócony obiekt będzie zawierał wyniki scoringu dla każdego z modeli.
 """)
 
+import textwrap
+
+@st.cache_data
+def generate_rl_function_py():
+    # Współczynniki regresji
+    coefs = dict(zip(encoder.cols, model.coef_[0]))
+
+    # Zakoduj biny i WOE z binning_tables
+    binning_info = {}
+    for feature in encoder.cols:
+        table = binning_tables[feature]
+        bins = []
+        for _, row in table.iterrows():
+            interval = row["Przedział"]
+            woe = row["WOE"]
+            bins.append((interval, woe))
+        binning_info[feature] = bins
+
+    # Funkcja jako kod Pythona
+    lines = []
+    lines.append("import pandas as pd")
+    lines.append("import numpy as np")
+    lines.append("")
+    lines.append("def score_woe_rl(df):")
+    lines.append("    df = df.copy()")
+    lines.append("    # Zmienne pochodne")
+    lines.append("    df['spread'] = df['oproc_propon'] - df['oproc_konkur']")
+    lines.append("    df['margin'] = df['oproc_propon'] - df['koszt_pieniadza']")
+    lines.append("    df['rata_miesieczna'] = df['kwota_kredytu'] / df['okres_kredytu']")
+    lines.append("    df['intensity_rate'] = df['rata_miesieczna'] / df['scoring_FICO']")
+    lines.append("")
+
+    # Dla każdej zmiennej: generuj binning i scoring
+    for feature in encoder.cols:
+        lines.append(f"    # {feature} (WOE + coef)")
+        lines.append(f"    def map_woe_{feature}(val):")
+        for interval, woe in binning_info[feature]:
+            interval_str = interval.replace('(', '').replace(']', '')
+            low, high = map(float, interval_str.split(','))
+            lines.append(f"        if {low} < val <= {high}: return {woe}")
+        lines.append(f"        return 0")
+        lines.append(f"    df['woe_{feature}'] = df['{feature}'].apply(map_woe_{feature})")
+        coef = coefs[feature]
+        lines.append(f"    df['score_{feature}'] = df['woe_{feature}'] * {coef}")
+        lines.append("")
+
+    # Sumuj score i przelicz na skale 0-100
+    sum_expr = ' + '.join([f"df['score_{f}']" for f in encoder.cols])
+    lines.append(f"    df['score_logit'] = 1 / (1 + np.exp(-({sum_expr})))")
+    lines.append("    df['Score'] = np.round(df['score_logit'] * 100).astype(int)")
+    lines.append("    return df")
+
+    return "\n".join(lines)
+
+
+# Generuj i udostępnij do pobrania
+rl_code = generate_rl_function_py()
+rl_bytes = rl_code.encode("utf-8")
+
+st.download_button(
+    label="📥 Pobierz funkcję scoringową (RL) jako .py",
+    data=rl_bytes,
+    file_name="score_woe_rl.py",
+    mime="text/x-python"
+)
